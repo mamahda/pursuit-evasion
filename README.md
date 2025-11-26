@@ -1,38 +1,36 @@
-# 🎮 AI Pathfinding Game: Thief vs Police
+#  AI Pathfinding Game: Thief vs Police
 
 Simulasi game berbasis AI yang mendemonstrasikan algoritma **A* Pathfinding**, **Predictive Movement**, dan **Strategic Interception** dalam skenario pengejaran polisi dan pencuri.
 
-![Python](https://img.shields.io/badge/Python-3.7+-blue.svg)
-![Pygame](https://img.shields.io/badge/Pygame-2.0+-green.svg)
 
-## 📋 Deskripsi
+##  Deskripsi
 
 Game ini mensimulasikan pengejaran cerdas antara satu pencuri dan dua polisi dalam maze dinamis. Setiap karakter menggunakan algoritma AI yang berbeda:
 
 - **Pencuri (Biru)**: Menggunakan **Weighted A*** dengan safety heatmap untuk menghindari zona bahaya polisi
-- **Polisi 1 - Chaser (Merah)**: Menggunakan **A* murni** untuk mengejar posisi pencuri secara langsung
-- **Polisi 2 - Interceptor (Merah Tua)**: Menggunakan **Predictive A*** untuk memotong jalur pencuri di masa depan
+- **Polisi 1 - Chaser (Merah)**: Menggunakan **A*** **murni** untuk mengejar posisi pencuri secara langsung
+- **Polisi 2 - Interceptor (Merah Tua)**: Menggunakan **Predictive A*** untuk memotong jalur pencuri di beberapa langkah ke depan
 
-## ✨ Fitur Utama
+##  Fitur Utama
 
-### 🧠 Algoritma AI
+###  Algoritma AI
 - **A* Pathfinding**: Pencarian jalur optimal dengan heuristik Manhattan Distance
 - **Weighted A***: Pathfinding dengan cost map dinamis untuk penghindaran bahaya
 - **Predictive Movement**: Prediksi 5 langkah ke depan berdasarkan vektor kecepatan
 - **Safety Heatmap**: Sistem pembobotan area berbahaya dengan fungsi eksponensial
 
-### 🎯 Gameplay
+###  Gameplay
 - **Tujuan Pencuri**: Ambil uang → Kabur ke Exit
 - **Tujuan Polisi**: Tangkap pencuri sebelum sampai Exit
 - **Dynamic Maze**: Maze acak 20x20 dengan 50% wall density
 - **Real-time Visualization**: Visualisasi jalur AI secara real-time
 
-### 🛡️ Safety Mechanism
+###  Safety Mechanism
 - Anti-stuck system dengan random restart
 - Spawn protection untuk area karakter
 - Fallback behavior saat pathfinding gagal
 
-## 🚀 Instalasi
+##  Instalasi
 
 ### Requirements
 ```bash
@@ -50,14 +48,14 @@ pip install pygame
 python Pursuit-Evasion.py
 ```
 
-## 🎮 Kontrol
+##  Kontrol
 
 | Tombol | Fungsi |
 |--------|--------|
 | `R` | Reset game (mulai baru) |
 | `Q` | Quit (keluar dari game) |
 
-## 📊 Struktur Kode
+##  Struktur Kode
 
 ```
 ├── BAGIAN 1: KONSTANTA & PENGATURAN
@@ -77,7 +75,7 @@ python Pursuit-Evasion.py
     └── Rendering System
 ```
 
-## 🧮 Cara Kerja Algoritma
+##  Cara Kerja Algoritma
 
 ### 1. A* Pathfinding
 ```python
@@ -103,7 +101,7 @@ PredictedPos = CurrentPos + (Velocity × Steps)
 - Prediksi 5 langkah ke depan
 - Polisi interceptor menuju posisi prediksi
 
-## 🎨 Visualisasi
+##  Visualisasi
 
 | Warna | Representasi |
 |-------|-------------|
@@ -117,7 +115,7 @@ PredictedPos = CurrentPos + (Velocity × Steps)
 | 🟥 **Merah Muda** | Jalur Polisi 1 |
 | 🟫 **Merah Gelap** | Jalur Polisi 2 |
 
-## ⚙️ Konfigurasi
+##  Konfigurasi
 
 Anda dapat menyesuaikan parameter game di bagian `KONSTANTA`:
 
@@ -133,39 +131,39 @@ base_danger_cost = 50      # Cost dasar zona bahaya
 multiplier = 100           # Pengali cost eksponensial
 ```
 
-## 🎯 Strategi AI
+##  Strategi AI
 
 ### Pencuri (Defensive)
-1. ✅ Prioritas: Keselamatan > Kecepatan
-2. 📊 Analisis safety heatmap setiap frame
-3. 🔄 Pilih jalur dengan cost terendah (paling aman)
-4. 🏃 Bergerak menghindari zona polisi
+1.  Prioritas: Keselamatan > Kecepatan
+2.  Analisis safety heatmap setiap frame
+3.  Pilih jalur dengan cost terendah (paling aman)
+4.  Bergerak menghindari zona polisi
 
 ### Polisi 1 - Chaser (Aggressive)
-1. 🎯 Target: Posisi pencuri SAAT INI
-2. ⚡ Taktik: Direct pursuit
-3. 💪 Peran: Pressure dari belakang
+1.  Target: Posisi pencuri SAAT INI
+2.  Taktik: Direct pursuit
+3.  Peran: Pressure dari belakang
 
 ### Polisi 2 - Interceptor (Tactical)
-1. 🔮 Target: Posisi pencuri DI MASA DEPAN
-2. 🧠 Taktik: Path prediction
-3. ✂️ Peran: Cut off dari depan
+1.  Target: Posisi pencuri DI MASA DEPAN
+2.  Taktik: Path prediction
+3.  Peran: Cut off dari depan
 
-## 🏆 Kondisi Kemenangan
+##  Kondisi Kemenangan
 
 ### Pencuri Menang
-- ✅ Ambil uang
-- ✅ Sampai ke Exit tanpa tertangkap
+-  Ambil uang
+-  Sampai ke Exit tanpa tertangkap
 
 ### Polisi Menang
-- ✅ Salah satu polisi menyentuh pencuri
-- ✅ Pencuri sudah ambil uang
+-  Salah satu polisi menyentuh pencuri
+-  Pencuri sudah ambil uang
 
-## 🔧 Troubleshooting
+##  Troubleshooting
 
 **Q: Game terlalu lambat/cepat?**
 ```python
-FPS = 10  # Ubah nilai ini (lebih tinggi = lebih cepat)
+FPS = 10  # Semakin tinggi, semakin cepat
 ```
 
 **Q: Terlalu banyak tembok?**
@@ -179,13 +177,13 @@ danger_radius = 4  # Kurangi radius untuk memudahkan pencuri
 multiplier = 50    # Kurangi multiplier untuk zona bahaya lebih kecil
 ```
 
-## 📚 Pembelajaran
+##  Pembelajaran
 
 Project ini cocok untuk mempelajari:
-- ✅ Algoritma A* dan variasinya
-- ✅ Game AI pathfinding
-- ✅ Predictive movement
-- ✅ Priority Queue (heapq)
-- ✅ Heuristic functions
-- ✅ Cost-based pathfinding
-- ✅ Multi-agent coordination
+-  Algoritma A* dan variasinya
+-  Game AI pathfinding
+-  Predictive movement
+-  Priority Queue (heapq)
+-  Heuristic functions
+-  Cost-based pathfinding
+-  Multi-agent coordination

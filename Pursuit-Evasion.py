@@ -493,8 +493,12 @@ class Game:
 
             # Update AI
             self.update_thief()
+            if self.thief_pos in self.police_positions:
+                self.game_state = POLICE_WIN
             self.update_police()
-
+            print("Chaser:", self.police_positions[0])
+            print("Interceptor:", self.police_positions[1])
+            print("Thief:", self.thief_pos)
             # Render
             self.draw()
             self.clock.tick(current_FPS)

@@ -448,7 +448,7 @@ class Game:
         pygame.draw.circle(self.screen, DARK_RED, get_center(self.police_positions[1]), CELL_SIZE//3)
 
         # UI Teks
-        status = "AMBIL UANG" if not self.money_collected else "KEJAR & CEGAT!!"
+        status = "Just a normal day in museum" if not self.money_collected else "Money has stolen, CHASE THE THIEF!"
         color = ORANGE if not self.money_collected else RED
         text = self.font.render(status, True, color)
         self.screen.blit(text, (10, 10))
@@ -499,12 +499,12 @@ class Game:
             print("Chaser:", self.police_positions[0])
             print("Interceptor:", self.police_positions[1])
             print("Thief:", self.thief_pos)
+
             # Render
             self.draw()
             self.clock.tick(current_FPS)
             
         pygame.quit()
 
-# Entry Point (Titik Masuk Program)
 if __name__ == "__main__":
     Game().run()

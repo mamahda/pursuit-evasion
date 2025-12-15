@@ -47,6 +47,9 @@ POLICE_WIN = 2
 # Threshold untuk mode switch Interceptor
 INTERCEPT_DISTANCE_THRESHOLD = 5
 
+# flag untuk menampilkan path polisi
+POLICE_PATH = 0
+
 # ==============================================================================
 # ASSET LOADER
 # ==============================================================================
@@ -441,17 +444,18 @@ class Game:
 
         # Draw police paths (only when money collected)
         if self.money_collected:
-            for pos in self.police_paths[0][:5]:  # Show only next 5 steps
-                rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
-                s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
-                s.fill((255, 200, 200, 100))
-                self.screen.blit(s, rect)
+            if POLICE_PATH:
+                for pos in self.police_paths[0][:5]:  # Show only next 5 steps
+                    rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
+                    s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
+                    s.fill((255, 200, 200, 100))
+                    self.screen.blit(s, rect)
 
-            for pos in self.police_paths[1][:5]:
-                rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
-                s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
-                s.fill((200, 100, 100, 100))
-                self.screen.blit(s, rect)
+                for pos in self.police_paths[1][:5]:
+                    rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
+                    s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
+                    s.fill((200, 100, 100, 100))
+                    self.screen.blit(s, rect)
 
         # Draw objects
         self.screen.blit(self.assets.assets['exit'], 

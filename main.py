@@ -44,6 +44,7 @@ THIEF_WIN = 1
 POLICE_WIN = 2
 
 INTERCEPT_DISTANCE_THRESHOLD = 5
+POLICE_PATH = 1
 
 LEVEL_CONFIG = {
     1: {"grid_size": 17, "walls": 0.25, "police_speed": 300, "name": "Easy"},
@@ -53,7 +54,10 @@ LEVEL_CONFIG = {
     5: {"grid_size": 17, "walls": 0.35, "police_speed": 130, "name": "Impossible"},
 }
 
-POLICE_PATH = 1
+# size font
+title_size = 64
+subtitle_size = 32
+menu_size = 24
 
 # ==============================================================================
 # ASSET LOADER
@@ -163,14 +167,14 @@ class Game:
         self.clock = pygame.time.Clock()
 
         try:
-            self.font = pygame.font.Font(FONT_PATH, 20)
-            self.small_font = pygame.font.Font(FONT_PATH, 16)
-            self.title_font = pygame.font.Font(FONT_PATH, 30)
+            self.font = pygame.font.Font(None, menu_size)
+            self.subtitle_font = pygame.font.Font(None, subtitle_size)
+            self.title_font = pygame.font.Font(FONT_PATH, title_size)
         except pygame.error:
             print(f"[WARNING] Font kustom {FONT_PATH} gagal dimuat. Menggunakan font default.")
             self.font = pygame.font.Font(None, 36)
-            self.small_font = pygame.font.Font(None, 24)
-            self.title_font = pygame.font.Font(None, 56)
+            self.subtitle_font = pygame.font.Font(None, 24)
+            self.title_font = pygame.font.Font(None, 64)
 
         self.assets = AssetLoader()
         self.move_delay = 150
@@ -472,9 +476,9 @@ class Game:
         title = self.title_font.render(title_text, True, TITLE_COLOR)
         self.screen.blit(title, (center_x - title.get_width() // 2, 40))
         
-        subtitle_text = "Pilih Level"
-        subtitle = self.font.render(subtitle_text, True, TEXT_COLOR)
-        self.screen.blit(subtitle, (center_x - subtitle.get_width() // 2, 120))
+        subtitle_text = "Pilih Level:"
+        subtitle = self.subtitle_font.render(subtitle_text, True, TEXT_COLOR)
+        self.screen.blit(subtitle, (center_x - subtitle.get_width() // 2, 150))
         
         y_pos = 200
         for level in range(1, len(LEVEL_CONFIG) + 1):
@@ -491,23 +495,27 @@ class Game:
                 text_color = (color_r, color_g, color_b)
                 
                 text_shadow = self.font.render(text_content, True, BLACK)
-                self.screen.blit(text_shadow, (center_x - text_shadow.get_width() // 2 + 2, y_pos + 2))
+                # self.screen.blit(text_shadow, (center_x - text_shadow.get_width() // 2 + 2, y_pos + 2))
             else:
                 text_color = TEXT_COLOR
             
             text = self.font.render(text_content, True, text_color)
-            self.screen.blit(text, (center_x - text.get_width() // 2, y_pos))
+            # self.screen.blit(text, (center_x - text.get_width() // 2, y_pos))
+            self.screen.blit(text, (200, y_pos))
             
             if is_selected:
                 indicator_size = 10
+                # pygame.draw.circle(self.screen, text_color, 
+                #                    (center_x - text.get_width() // 2 - 20, y_pos + text.get_height() // 2), 
+                #                    indicator_size // 2)
                 pygame.draw.circle(self.screen, text_color, 
-                                   (center_x - text.get_width() // 2 - 20, y_pos + text.get_height() // 2), 
+                                   (180, y_pos + text.get_height() // 2), 
                                    indicator_size // 2)
             
-            y_pos += 60
+            y_pos += 40
         
-        info_text = "W/S untuk Memilih | ENTER untuk Mulai"
-        info = self.small_font.render(info_text, True, (150, 150, 150))
+        info_text = "ENTER untuk Mulai"
+        info = self.font.render(info_text, True, (150, 150, 150))
         self.screen.blit(info, (center_x - info.get_width() // 2, window_height - 60))
         
         pygame.display.flip()
@@ -573,9 +581,9 @@ class Game:
         if self.timer_started and self.game_state == PLAYING:
             current_time = pygame.time.get_ticks()
             elapsed = (current_time - self.start_time) / 1000.0
-            timer_text = self.small_font.render(f"Time: {elapsed:.1f}s", True, BLACK)
+            timer_text = self.subtitle_font.render(f"Time: {elapsed:.1f}s", True, BLACK)
         else:
-            timer_text = self.small_font.render(f"Time: 0.0s", True, BLACK)
+            timer_text = self.subtitle_font.render(f"Time: 0.0s", True, BLACK)
         
         bg2 = pygame.Surface((timer_text.get_width() + 10, timer_text.get_height() + 5))
         bg2.fill(WHITE)
@@ -583,7 +591,7 @@ class Game:
         self.screen.blit(bg2, (5, 45))
         self.screen.blit(timer_text, (10, 47))
 
-        level_text = self.small_font.render(f"Level {self.current_level}: {config['name']}", True, BLACK)
+        level_text = self.subtitle_font.render(f"Level {self.current_level}: {config['name']}", True, BLACK)
         bg_level = pygame.Surface((level_text.get_width() + 10, level_text.get_height() + 5))
         bg_level.fill(WHITE)
         bg_level.set_alpha(200)
@@ -592,7 +600,7 @@ class Game:
 
         if self.money_collected:
             mode_text = f"Chaser | Interceptor ({self.interceptor_mode.upper()})"
-            role_text = self.small_font.render(mode_text, True, BLACK)
+            role_text = self.subtitle_font.render(mode_text, True, BLACK)
             bg3 = pygame.Surface((role_text.get_width() + 10, role_text.get_height() + 5))
             bg3.fill(WHITE)
             bg3.set_alpha(200)
@@ -617,8 +625,8 @@ class Game:
             print(self.elapsed_time)
             score_msg = f"Time: {self.elapsed_time:.2f}s"
             text = self.font.render(msg, True, color)
-            score = self.small_font.render(score_msg, True, WHITE)
-            restart = self.small_font.render(next_action, True, WHITE)
+            score = self.subtitle_font.render(score_msg, True, WHITE)
+            restart = self.subtitle_font.render(next_action, True, WHITE)
             
             center_x, center_y = window_size // 2, window_size // 2
             

@@ -5,6 +5,10 @@ import urllib.request
 import os
 
 pygame.init()
+try:
+    pygame.mixer.init()
+except Exception:
+    print("[WARNING] pygame.mixer failed to initialize; sound disabled.")
 
 # ==============================================================================
 # CONSTANTS
@@ -56,6 +60,14 @@ class AssetLoader:
         self.assets['exit'] = self.create_exit_sprite()
         self.assets['wall'] = self.create_wall_sprite()
         self.assets['floor'] = self.create_floor_sprite()
+        # Load running sound (played when thief is chased)
+        self.assets['running'] = self.load_sound('running.mp3')
+        # Load before sound (played before money is collected)
+        self.assets['before'] = self.load_sound('before.mp3')
+        # Load win sound (played when thief escapes)
+        self.assets['win'] = self.load_sound('win.mp3')
+        # Load lose sound (played when thief is caught)
+        self.assets['lose'] = self.load_sound('lose.mp3')
     
     def load_or_create(self, filename, fallback_color):
         """Load image or create colored square as fallback"""
@@ -74,6 +86,15 @@ class AssetLoader:
         pygame.draw.rect(surf, (70, 130, 70), (8, 3, CELL_SIZE - 16, CELL_SIZE - 6))
         pygame.draw.circle(surf, YELLOW, (CELL_SIZE - 15, CELL_SIZE // 2), 4)
         return surf
+
+    def load_sound(self, filename):
+        filepath = os.path.join(self.asset_dir, filename)
+        try:
+            sound = pygame.mixer.Sound(filepath)
+            return sound
+        except Exception as e:
+            print(f"[WARNING] Sound {filename} failed to load: {e}")
+            return None
     
     def create_wall_sprite(self):
         surf = pygame.Surface((CELL_SIZE, CELL_SIZE))
@@ -138,6 +159,119 @@ class Game:
         self.start_time = 0
         self.elapsed_time = 0
         self.timer_started = False
+        self.running_sound_playing = False
+        self.before_sound_playing = False
+        self.win_sound_playing = False
+        self.lose_sound_playing = False
+
+    def play_running_sound(self):
+        """Play the running sound in loop when chase starts"""
+        sound = None
+        try:
+            sound = self.assets.assets.get('running')
+        except Exception:
+            return
+        if sound and not getattr(self, 'running_sound_playing', False):
+            try:
+                sound.set_volume(0.5)
+                sound.play(-1)
+                self.running_sound_playing = True
+            except Exception:
+                pass
+
+    def stop_running_sound(self):
+        """Stop the running sound"""
+        try:
+            sound = self.assets.assets.get('running')
+        except Exception:
+            sound = None
+        if sound:
+            try:
+                sound.stop()
+            except Exception:
+                pass
+        self.running_sound_playing = False
+
+    def play_before_sound(self):
+        """Play the before sound in loop before money is collected"""
+        sound = None
+        try:
+            sound = self.assets.assets.get('before')
+        except Exception:
+            return
+        if sound and not getattr(self, 'before_sound_playing', False):
+            try:
+                sound.play(-1)
+                self.before_sound_playing = True
+            except Exception:
+                pass
+
+    def stop_before_sound(self):
+        """Stop the before sound"""
+        try:
+            sound = self.assets.assets.get('before')
+        except Exception:
+            sound = None
+        if sound:
+            try:
+                sound.stop()
+            except Exception:
+                pass
+        self.before_sound_playing = False
+
+    def play_win_sound(self):
+        """Play the win sound when thief escapes"""
+        sound = None
+        try:
+            sound = self.assets.assets.get('win')
+        except Exception:
+            return
+        if sound and not getattr(self, 'win_sound_playing', False):
+            try:
+                sound.play(0)
+                self.win_sound_playing = True
+            except Exception:
+                pass
+
+    def stop_win_sound(self):
+        """Stop the win sound"""
+        try:
+            sound = self.assets.assets.get('win')
+        except Exception:
+            sound = None
+        if sound:
+            try:
+                sound.stop()
+            except Exception:
+                pass
+        self.win_sound_playing = False
+
+    def play_lose_sound(self):
+        """Play the lose sound when thief is caught"""
+        sound = None
+        try:
+            sound = self.assets.assets.get('lose')
+        except Exception:
+            return
+        if sound and not getattr(self, 'lose_sound_playing', False):
+            try:
+                sound.play(0)
+                self.lose_sound_playing = True
+            except Exception:
+                pass
+
+    def stop_lose_sound(self):
+        """Stop the lose sound"""
+        try:
+            sound = self.assets.assets.get('lose')
+        except Exception:
+            sound = None
+        if sound:
+            try:
+                sound.stop()
+            except Exception:
+                pass
+        self.lose_sound_playing = False
 
     def get_random_position(self, exclude=[]):
         """Get random free position on grid"""
@@ -160,6 +294,18 @@ class Game:
         """Initialize new game"""
         self.current_level = self.selected_level
         config = LEVEL_CONFIG[self.current_level]
+        # ensure any sounds are stopped when starting/resetting
+        try:
+            self.stop_running_sound()
+            self.stop_before_sound()
+        except Exception:
+            pass
+        
+        # start before sound for pre-heist phase
+        try:
+            self.play_before_sound()
+        except Exception:
+            pass
         
         # Create grid with walls
         self.grid = [[0] * GRID_SIZE for _ in range(GRID_SIZE)]
@@ -244,6 +390,44 @@ class Game:
                 return [tx, ty]
         return self.thief_pos
 
+    def evaluate_position(self, police_pos, thief_pos, depth):
+        """Evaluate position score for minimax (lower is better for police)"""
+        distance = self.manhattan_distance(police_pos, thief_pos)
+        # Closer distance = higher score (better for police)
+        return -distance + depth * 2
+
+    def minimax(self, police_pos, thief_pos, depth, is_maximizing):
+        """Minimax algorithm to evaluate best police move
+        Maximizing: thief tries to maximize distance
+        Minimizing: police tries to minimize distance
+        """
+        if depth == 0:
+            return self.evaluate_position(police_pos, thief_pos, depth), police_pos
+        
+        if is_maximizing:  # Thief's turn (worst case for police)
+            max_eval = float('-inf')
+            best_pos = police_pos
+            for neighbor in self.get_neighbors(thief_pos):
+                eval_score, _ = self.minimax(police_pos, neighbor, depth - 1, False)
+                if eval_score > max_eval:
+                    max_eval = eval_score
+                    best_pos = neighbor
+            return max_eval, best_pos
+        else:  # Police's turn (best case for police)
+            min_eval = float('inf')
+            best_pos = police_pos
+            for neighbor in self.get_neighbors(police_pos):
+                eval_score, _ = self.minimax(neighbor, thief_pos, depth - 1, True)
+                if eval_score < min_eval:
+                    min_eval = eval_score
+                    best_pos = neighbor
+            return min_eval, best_pos
+
+    def get_best_police_move(self, police_pos, thief_pos, depth=2):
+        """Get best move for police using minimax"""
+        _, best_target = self.minimax(police_pos, thief_pos, depth, False)
+        return best_target if best_target != police_pos else None
+
     def handle_input(self):
         """Handle keyboard input based on game state"""
         keys = pygame.key.get_pressed()
@@ -292,11 +476,23 @@ class Game:
                     # Check money collection
                     if self.thief_pos == self.money_pos:
                         self.money_collected = True
+                        # stop before sound and start running sound when thief takes the money
+                        try:
+                            self.stop_before_sound()
+                            self.play_running_sound()
+                        except Exception:
+                            pass
                     
                     # Check win condition
                     if self.thief_pos == self.exit_pos and self.money_collected:
                         self.game_state = THIEF_WIN
                         self.elapsed_time = (current_time - self.start_time) / 1000.0
+                        try:
+                            self.stop_running_sound()
+                            self.stop_before_sound()
+                            self.play_win_sound()
+                        except Exception:
+                            pass
 
     def update_police(self):
         """Update police positions"""
@@ -329,6 +525,12 @@ class Game:
         if self.thief_pos in self.police_positions:
             self.game_state = POLICE_WIN
             self.elapsed_time = (current_time - self.start_time) / 1000.0
+            try:
+                self.stop_running_sound()
+                self.stop_before_sound()
+                self.play_lose_sound()
+            except Exception:
+                pass
 
     def draw_menu(self):
         """Draw menu screen"""
@@ -467,6 +669,15 @@ class Game:
 
             self.handle_input()
             self.update_police()
+            # ensure sounds are stopped when returning to menu
+            if self.game_state == MENU:
+                try:
+                    self.stop_running_sound()
+                    self.stop_before_sound()
+                    self.stop_win_sound()
+                    self.stop_lose_sound()
+                except Exception:
+                    pass
             self.draw()
             self.clock.tick(FPS)
         

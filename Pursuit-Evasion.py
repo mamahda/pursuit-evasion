@@ -54,6 +54,8 @@ LEVEL_CONFIG = {
     4: {"grid_size": 17, "walls": 0.30, "police_speed": 140, "name": "Expert"},
     5: {"grid_size": 17, "walls": 0.35, "police_speed": 120, "name": "Nightmare"},
 }
+# flag untuk menampilkan path polisi
+POLICE_PATH = 0
 
 # ==============================================================================
 # ASSET LOADER
@@ -432,17 +434,18 @@ class Game:
                     self.screen.blit(self.assets.assets['floor'], (x * CELL_SIZE, y * CELL_SIZE))
 
         if self.money_collected:
-            for pos in self.police_paths[0][:5]:
-                rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
-                s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
-                s.fill((255, 200, 200, 100))
-                self.screen.blit(s, rect)
+            if POLICE_PATH:
+                for pos in self.police_paths[0][:5]:  # Show only next 5 steps
+                    rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
+                    s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
+                    s.fill((255, 200, 200, 100))
+                    self.screen.blit(s, rect)
 
-            for pos in self.police_paths[1][:5]:
-                rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
-                s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
-                s.fill((200, 100, 100, 100))
-                self.screen.blit(s, rect)
+                for pos in self.police_paths[1][:5]:
+                    rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
+                    s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
+                    s.fill((200, 100, 100, 100))
+                    self.screen.blit(s, rect)
 
         self.screen.blit(self.assets.assets['exit'], 
                         (self.exit_pos[0]*CELL_SIZE, self.exit_pos[1]*CELL_SIZE))

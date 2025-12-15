@@ -622,7 +622,6 @@ class Game:
                 next_action = "Press R for Menu | Q to Quit"
                 color = RED
             
-            print(self.elapsed_time)
             score_msg = f"Time: {self.elapsed_time:.2f}s"
             text = self.font.render(msg, True, color)
             score = self.subtitle_font.render(score_msg, True, WHITE)

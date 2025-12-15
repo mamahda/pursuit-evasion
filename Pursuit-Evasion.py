@@ -6,27 +6,16 @@ import os
 import sys
 import io
 
-# Ensure stdout/stderr use UTF-8 to avoid UnicodeEncodeError on Windows consoles
-try:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
-    else:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-except Exception:
-    pass
-
 pygame.init()
 
 # ==============================================================================
 # KONSTANTA & PENGATURAN
 # ==============================================================================
 
-GRID_SIZE = 15
-CELL_SIZE = 50
+GRID_SIZE = 17
+CELL_SIZE = 43
 WINDOW_SIZE = GRID_SIZE * CELL_SIZE
-FPS = 60  # Increased for smooth player movement
+FPS = 60
 
 # Warna
 WHITE = (255, 255, 255)
@@ -38,6 +27,15 @@ BLUE = (0, 100, 255)
 GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
 ORANGE = (255, 165, 0)
+
+GRADIENT_TOP = (10, 10, 50)
+GRADIENT_BOTTOM = (30, 30, 100)
+TEXT_COLOR = (255, 255, 255)
+SELECTED_COLOR_START = (255, 100, 0)
+SELECTED_COLOR_END = (255, 200, 50)
+TITLE_COLOR = (255, 20, 20)
+
+FONT_PATH = "KKA/pursuit-evasion/assets/upheavtt.ttf"
 
 # Status Game
 MENU = -1
@@ -54,7 +52,7 @@ LEVEL_CONFIG = {
     4: {"grid_size": 17, "walls": 0.30, "police_speed": 160, "name": "Expert"},
     5: {"grid_size": 17, "walls": 0.35, "police_speed": 130, "name": "Impossible"},
 }
-# flag untuk menampilkan path polisi
+
 POLICE_PATH = 1
 
 # ==============================================================================
@@ -163,10 +161,17 @@ class Game:
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
         pygame.display.set_caption("Museum Heist - Escape the Police!")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(None, 36)
-        self.small_font = pygame.font.Font(None, 24)
-        self.title_font = pygame.font.Font(None, 56)
-        
+
+        try:
+            self.font = pygame.font.Font(FONT_PATH, 20)
+            self.small_font = pygame.font.Font(FONT_PATH, 16)
+            self.title_font = pygame.font.Font(FONT_PATH, 30)
+        except pygame.error:
+            print(f"[WARNING] Font kustom {FONT_PATH} gagal dimuat. Menggunakan font default.")
+            self.font = pygame.font.Font(None, 36)
+            self.small_font = pygame.font.Font(None, 24)
+            self.title_font = pygame.font.Font(None, 56)
+
         self.assets = AssetLoader()
         self.move_delay = 150
         self.last_move_time = 0
@@ -174,6 +179,26 @@ class Game:
         self.current_level = 1
         self.game_state = MENU
         self.selected_level = 1
+        
+        # Timer variables
+        self.timer_started = False
+        self.start_time = 0
+        self.elapsed_time = 0
+
+    def get_random_free_position(self, exclude_positions=[]):
+        """Mendapatkan posisi random yang tidak ada wall dan tidak ada di exclude_positions"""
+        max_attempts = 1000
+        for _ in range(max_attempts):
+            x = random.randint(1, self.grid_size - 2)
+            y = random.randint(1, self.grid_size - 2)
+            pos = [x, y]
+            
+            # Cek apakah posisi kosong dan tidak ada di exclude_positions
+            if self.grid[y][x] == 0 and pos not in exclude_positions:
+                return pos
+        
+        # Fallback jika tidak menemukan posisi
+        return [self.grid_size // 2, self.grid_size // 2]
 
     def reset_game(self):
         self.current_level = self.selected_level
@@ -189,23 +214,48 @@ class Game:
         self.grid_size = grid_size
         self.wall_ratio = config["walls"]
         
-        self.thief_pos = [1, 1]
-        self.thief_prev_pos = [1, 1]
-        self.money_pos = [grid_size // 2, grid_size // 2]
-        self.exit_pos = [grid_size - 2, 1]
-        self.police_positions = [[grid_size - 2, grid_size - 2], [grid_size - 2, 0]]
+        # Generate walls terlebih dahulu
+        self.generate_walls()
+        
+        # Posisi random untuk exit (thief start position)
+        self.exit_pos = self.get_random_free_position([])
+        
+        # Thief mulai dari exit
+        self.thief_pos = list(self.exit_pos)
+        self.thief_prev_pos = list(self.exit_pos)
+        
+        # Posisi random untuk money
+        self.money_pos = self.get_random_free_position([self.exit_pos])
+        
+        # Posisi random untuk police
+        self.police_positions = [
+            self.get_random_free_position([self.exit_pos, self.money_pos]),
+            self.get_random_free_position([self.exit_pos, self.money_pos])
+        ]
+        
+        # Clear area di sekitar posisi penting
+        positions_to_clear = [self.thief_pos, self.money_pos, self.exit_pos] + self.police_positions
+        for pos in positions_to_clear:
+            cx, cy = pos
+            for dy in range(-1, 2):
+                for dx in range(-1, 2):
+                    ny, nx = cy + dy, cx + dx
+                    if 0 <= ny < self.grid_size and 0 <= nx < self.grid_size:
+                        self.grid[ny][nx] = 0
         
         self.police_paths = [[], []]
         self.police_move_delay = config["police_speed"]
         self.last_police_move = 0
 
-        self.generate_walls()
-        
         self.money_collected = False
         self.game_state = PLAYING
         self.moves_count = 0
-        self.start_time = pygame.time.get_ticks()
         self.interceptor_mode = "intercept"
+        
+        # Reset timer
+        self.timer_started = False
+        self.start_time = 0
+        self.elapsed_time = 0
 
     def generate_walls(self):
         wall_count = int(self.grid_size * self.grid_size * self.wall_ratio)
@@ -213,15 +263,6 @@ class Game:
             x = random.randint(1, self.grid_size - 2)
             y = random.randint(1, self.grid_size - 2)
             self.grid[y][x] = 1
-
-        positions_to_clear = [self.thief_pos, self.money_pos, self.exit_pos] + self.police_positions
-        for pos in positions_to_clear:
-            cx, cy = pos
-            for dy in range(-2, 3):
-                for dx in range(-2, 3):
-                    ny, nx = cy + dy, cx + dx
-                    if 0 <= ny < self.grid_size and 0 <= nx < self.grid_size:
-                        self.grid[ny][nx] = 0
 
     def manhattan_distance(self, pos1, pos2):
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
@@ -317,6 +358,11 @@ class Game:
                 0 <= new_pos[1] < self.grid_size and 
                 self.grid[new_pos[1]][new_pos[0]] == 0):
                 
+                # Start timer saat gerakan pertama
+                if not self.timer_started:
+                    self.timer_started = True
+                    self.start_time = current_time
+                
                 self.thief_prev_pos = list(self.thief_pos)
                 self.thief_pos = new_pos
                 self.last_move_time = current_time
@@ -327,6 +373,7 @@ class Game:
                 
                 if self.thief_pos == self.exit_pos and self.money_collected:
                     self.game_state = THIEF_WIN
+                    self.elapsed_time = (current_time - self.start_time) / 1000.0
 
     def get_intercept_target(self):
         dx = self.thief_pos[0] - self.thief_prev_pos[0]
@@ -344,6 +391,7 @@ class Game:
         return self.thief_pos
 
     def update_police(self):
+        # Police hanya bergerak setelah money diambil
         if self.game_state != PLAYING or not self.money_collected:
             return
         
@@ -386,33 +434,80 @@ class Game:
                 if neighbors:
                     self.police_positions[1] = random.choice(neighbors)
 
+        # Cek tangkapan hanya setelah money diambil
         for p_pos in self.police_positions:
             if p_pos == self.thief_pos:
                 self.game_state = POLICE_WIN
+                self.elapsed_time = (current_time - self.start_time) / 1000.0
+
+    def draw_gradient_background(self, surface, top_color, bottom_color):
+        """Menggambar latar belakang gradient vertikal sederhana."""
+        width, height = surface.get_size()
+        gradient_surface = pygame.Surface((1, height))
+        
+        for y in range(height):
+            t = y / (height - 1)
+            r = int(top_color[0] * (1 - t) + bottom_color[0] * t)
+            g = int(top_color[1] * (1 - t) + bottom_color[1] * t)
+            b = int(top_color[2] * (1 - t) + bottom_color[2] * t)
+            gradient_surface.set_at((0, y), (r, g, b))
+            
+        pygame.transform.scale(gradient_surface, (width, height), surface)
 
     def draw_menu(self):
-        self.screen.fill(WHITE)
+        # Pastikan ukuran window konsisten di menu
+        menu_size = 17 * CELL_SIZE
+        current_size = self.screen.get_size()[0]
         
-        title = self.title_font.render("MUSEUM HEIST", True, DARK_RED)
-        self.screen.blit(title, (WINDOW_SIZE // 2 - title.get_width() // 2, 30))
+        if current_size != menu_size:
+            self.screen = pygame.display.set_mode((menu_size, menu_size))
         
-        subtitle = self.font.render("Select Level", True, BLACK)
-        self.screen.blit(subtitle, (WINDOW_SIZE // 2 - subtitle.get_width() // 2, 100))
+        window_width, window_height = menu_size, menu_size
+        center_x = window_width // 2
+
+        self.draw_gradient_background(self.screen, GRADIENT_TOP, GRADIENT_BOTTOM)
         
-        y_pos = 180
+        title_text = "MUSEUM HEIST"
+        title = self.title_font.render(title_text, True, TITLE_COLOR)
+        self.screen.blit(title, (center_x - title.get_width() // 2, 40))
+        
+        subtitle_text = "Pilih Level"
+        subtitle = self.font.render(subtitle_text, True, TEXT_COLOR)
+        self.screen.blit(subtitle, (center_x - subtitle.get_width() // 2, 120))
+        
+        y_pos = 200
         for level in range(1, len(LEVEL_CONFIG) + 1):
             config = LEVEL_CONFIG[level]
             is_selected = level == self.selected_level
             
-            color = RED if is_selected else BLACK
-            prefix = "→ " if is_selected else "  "
-            text = self.small_font.render(f"{prefix}Level {level}: {config['name']}", True, color)
+            level_name = config['name']
+            text_content = f"Level {level}: {level_name}"
             
-            self.screen.blit(text, (WINDOW_SIZE // 2 - text.get_width() // 2, y_pos))
-            y_pos += 50
+            if is_selected:
+                color_r = int((SELECTED_COLOR_START[0] + SELECTED_COLOR_END[0]) / 2)
+                color_g = int((SELECTED_COLOR_START[1] + SELECTED_COLOR_END[1]) / 2)
+                color_b = int((SELECTED_COLOR_START[2] + SELECTED_COLOR_END[2]) / 2)
+                text_color = (color_r, color_g, color_b)
+                
+                text_shadow = self.font.render(text_content, True, BLACK)
+                self.screen.blit(text_shadow, (center_x - text_shadow.get_width() // 2 + 2, y_pos + 2))
+            else:
+                text_color = TEXT_COLOR
+            
+            text = self.font.render(text_content, True, text_color)
+            self.screen.blit(text, (center_x - text.get_width() // 2, y_pos))
+            
+            if is_selected:
+                indicator_size = 10
+                pygame.draw.circle(self.screen, text_color, 
+                                   (center_x - text.get_width() // 2 - 20, y_pos + text.get_height() // 2), 
+                                   indicator_size // 2)
+            
+            y_pos += 60
         
-        info = self.small_font.render("↑/W ↓/S to Select | ENTER to Start", True, GRAY)
-        self.screen.blit(info, (WINDOW_SIZE // 2 - info.get_width() // 2, WINDOW_SIZE - 60))
+        info_text = "W/S untuk Memilih | ENTER untuk Mulai"
+        info = self.small_font.render(info_text, True, (150, 150, 150))
+        self.screen.blit(info, (center_x - info.get_width() // 2, window_height - 60))
         
         pygame.display.flip()
 
@@ -433,19 +528,18 @@ class Game:
                 else:
                     self.screen.blit(self.assets.assets['floor'], (x * CELL_SIZE, y * CELL_SIZE))
 
-        if self.money_collected:
-            if POLICE_PATH:
-                for pos in self.police_paths[0][:5]:  # Show only next 5 steps
-                    rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
-                    s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
-                    s.fill((255, 200, 200, 100))
-                    self.screen.blit(s, rect)
+        if self.money_collected and POLICE_PATH:
+            for pos in self.police_paths[0][:5]:
+                rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
+                s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
+                s.fill((255, 200, 200, 100))
+                self.screen.blit(s, rect)
 
-                for pos in self.police_paths[1][:5]:
-                    rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
-                    s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
-                    s.fill((200, 100, 100, 100))
-                    self.screen.blit(s, rect)
+            for pos in self.police_paths[1][:5]:
+                rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
+                s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
+                s.fill((200, 100, 100, 100))
+                self.screen.blit(s, rect)
 
         self.screen.blit(self.assets.assets['exit'], 
                         (self.exit_pos[0]*CELL_SIZE, self.exit_pos[1]*CELL_SIZE))
@@ -457,11 +551,11 @@ class Game:
         self.screen.blit(self.assets.assets['thief'], 
                         (self.thief_pos[0]*CELL_SIZE, self.thief_pos[1]*CELL_SIZE))
         
-        if self.money_collected:
-            self.screen.blit(self.assets.assets['police1'], 
-                            (self.police_positions[0][0]*CELL_SIZE, self.police_positions[0][1]*CELL_SIZE))
-            self.screen.blit(self.assets.assets['police2'], 
-                            (self.police_positions[1][0]*CELL_SIZE, self.police_positions[1][1]*CELL_SIZE))
+        # Police selalu ditampilkan
+        self.screen.blit(self.assets.assets['police1'], 
+                        (self.police_positions[0][0]*CELL_SIZE, self.police_positions[0][1]*CELL_SIZE))
+        self.screen.blit(self.assets.assets['police2'], 
+                        (self.police_positions[1][0]*CELL_SIZE, self.police_positions[1][1]*CELL_SIZE))
 
         config = LEVEL_CONFIG[self.current_level]
         status = "Steal the Diamond! (Arrow Keys/WASD)" if not self.money_collected else "ESCAPE! Police are chasing you!"
@@ -474,12 +568,19 @@ class Game:
         self.screen.blit(bg, (5, 5))
         self.screen.blit(text, (10, 5))
 
-        moves_text = self.small_font.render(f"Moves: {self.moves_count}", True, BLACK)
-        bg2 = pygame.Surface((moves_text.get_width() + 10, moves_text.get_height() + 5))
+        # Tampilkan timer
+        if self.timer_started and self.game_state == PLAYING:
+            current_time = pygame.time.get_ticks()
+            elapsed = (current_time - self.start_time) / 1000.0
+            timer_text = self.small_font.render(f"Time: {elapsed:.1f}s", True, BLACK)
+        else:
+            timer_text = self.small_font.render(f"Time: 0.0s", True, BLACK)
+        
+        bg2 = pygame.Surface((timer_text.get_width() + 10, timer_text.get_height() + 5))
         bg2.fill(WHITE)
         bg2.set_alpha(200)
         self.screen.blit(bg2, (5, 45))
-        self.screen.blit(moves_text, (10, 47))
+        self.screen.blit(timer_text, (10, 47))
 
         level_text = self.small_font.render(f"Level {self.current_level}: {config['name']}", True, BLACK)
         bg_level = pygame.Surface((level_text.get_width() + 10, level_text.get_height() + 5))
@@ -512,7 +613,7 @@ class Game:
                 next_action = "Press R for Menu | Q to Quit"
                 color = RED
             
-            score_msg = f"Moves: {self.moves_count}"
+            score_msg = f"Time: {self.elapsed_time:.2f}s"
             text = self.font.render(msg, True, color)
             score = self.small_font.render(score_msg, True, WHITE)
             restart = self.small_font.render(next_action, True, WHITE)
@@ -560,8 +661,12 @@ class Game:
             else:
                 self.handle_player_input()
                 
-                if self.thief_pos in self.police_positions:
+                # Cek tangkapan hanya setelah money diambil
+                if self.money_collected and self.thief_pos in self.police_positions:
                     self.game_state = POLICE_WIN
+                    if self.timer_started:
+                        current_time = pygame.time.get_ticks()
+                        self.elapsed_time = (current_time - self.start_time) / 1000.0
                 
                 self.update_police()
             

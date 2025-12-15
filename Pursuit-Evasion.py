@@ -48,14 +48,14 @@ POLICE_WIN = 2
 INTERCEPT_DISTANCE_THRESHOLD = 5
 
 LEVEL_CONFIG = {
-    1: {"grid_size": 17, "walls": 0.25, "police_speed": 200, "name": "Easy"},
-    2: {"grid_size": 17, "walls": 0.30, "police_speed": 180, "name": "Normal"},
-    3: {"grid_size": 17, "walls": 0.35, "police_speed": 160, "name": "Hard"},
-    4: {"grid_size": 17, "walls": 0.30, "police_speed": 140, "name": "Expert"},
-    5: {"grid_size": 17, "walls": 0.35, "police_speed": 120, "name": "Nightmare"},
+    1: {"grid_size": 17, "walls": 0.25, "police_speed": 300, "name": "Easy"},
+    2: {"grid_size": 17, "walls": 0.30, "police_speed": 200, "name": "Normal"},
+    3: {"grid_size": 17, "walls": 0.35, "police_speed": 180, "name": "Hard"},
+    4: {"grid_size": 17, "walls": 0.30, "police_speed": 160, "name": "Expert"},
+    5: {"grid_size": 17, "walls": 0.35, "police_speed": 130, "name": "Impossible"},
 }
 # flag untuk menampilkan path polisi
-POLICE_PATH = 0
+POLICE_PATH = 1
 
 # ==============================================================================
 # ASSET LOADER

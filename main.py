@@ -35,7 +35,7 @@ SELECTED_COLOR_START = (255, 100, 0)
 SELECTED_COLOR_END = (255, 200, 50)
 TITLE_COLOR = (255, 20, 20)
 
-FONT_PATH = "KKA/pursuit-evasion/assets/upheavtt.ttf"
+FONT_PATH = "./assets/upheavtt.ttf"
 
 # Status Game
 MENU = -1
@@ -439,6 +439,7 @@ class Game:
             if p_pos == self.thief_pos:
                 self.game_state = POLICE_WIN
                 self.elapsed_time = (current_time - self.start_time) / 1000.0
+                return;
 
     def draw_gradient_background(self, surface, top_color, bottom_color):
         """Menggambar latar belakang gradient vertikal sederhana."""
@@ -613,6 +614,7 @@ class Game:
                 next_action = "Press R for Menu | Q to Quit"
                 color = RED
             
+            print(self.elapsed_time)
             score_msg = f"Time: {self.elapsed_time:.2f}s"
             text = self.font.render(msg, True, color)
             score = self.small_font.render(score_msg, True, WHITE)
@@ -662,11 +664,11 @@ class Game:
                 self.handle_player_input()
                 
                 # Cek tangkapan hanya setelah money diambil
-                if self.money_collected and self.thief_pos in self.police_positions:
-                    self.game_state = POLICE_WIN
-                    if self.timer_started:
-                        current_time = pygame.time.get_ticks()
-                        self.elapsed_time = (current_time - self.start_time) / 1000.0
+                # if self.money_collected and self.thief_pos in self.police_positions:
+                #     self.game_state = POLICE_WIN
+                #     if self.timer_started:
+                #         current_time = pygame.time.get_ticks()
+                #         self.elapsed_time = (current_time - self.start_time) / 1000.0
                 
                 self.update_police()
             

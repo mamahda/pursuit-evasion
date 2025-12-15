@@ -33,8 +33,8 @@ LEVEL_CONFIG = {
     1: {"walls": 0.25, "police_speed": 300, "name": "Easy"},
     2: {"walls": 0.30, "police_speed": 200, "name": "Normal"},
     3: {"walls": 0.35, "police_speed": 180, "name": "Hard"},
-    4: {"walls": 0.30, "police_speed": 160, "name": "Expert"},
-    5: {"walls": 0.35, "police_speed": 130, "name": "Impossible"},
+    4: {"walls": 0.35, "police_speed": 150, "name": "Expert"},
+    5: {"walls": 0.40, "police_speed": 120, "name": "Impossible"},
 }
 
 # ==============================================================================
@@ -139,12 +139,26 @@ class Game:
         self.elapsed_time = 0
         self.timer_started = False
 
-    def get_random_position(self, exclude=[]):
-        """Get random free position on grid"""
-        for _ in range(1000):
+    def get_random_position(self, exclude=[], min_distance=1):
+        """
+        Get random free position on grid, ensuring it has a Manhattan distance 
+        greater than or equal to min_distance from all positions in the exclude list.
+        """
+        # Meningkatkan iterasi untuk peluang yang lebih baik
+        for _ in range(10000): 
             x, y = random.randint(1, GRID_SIZE - 2), random.randint(1, GRID_SIZE - 2)
-            if self.grid[y][x] == 0 and [x, y] not in exclude:
-                return [x, y]
+            current_pos = [x, y]
+            
+            # Pengecekan 1: Pastikan bukan dinding
+            if self.grid[y][x] == 0:
+                # Pengecekan 2: Pastikan jarak Manhattan >= min_distance dari SEMUA excluded_pos
+                is_far_enough = all(self.manhattan_distance(current_pos, pos) >= min_distance 
+                                    for pos in exclude)
+                
+                if is_far_enough:
+                    return current_pos
+                    
+        # Fallback: Jika gagal, kembalikan posisi tengah (berisiko melanggar jarak minimum)
         return [GRID_SIZE // 2, GRID_SIZE // 2]
 
     def clear_area(self, positions):
@@ -168,13 +182,13 @@ class Game:
             self.grid[random.randint(1, GRID_SIZE-2)][random.randint(1, GRID_SIZE-2)] = 1
         
         # Place game elements
-        self.exit_pos = self.get_random_position()
+        self.money_pos = self.get_random_position()
+        self.exit_pos = self.get_random_position([self.money_pos], min_distance=10)
         self.thief_pos = list(self.exit_pos)
         self.thief_prev_pos = list(self.exit_pos)
-        self.money_pos = self.get_random_position([self.exit_pos])
         self.police_positions = [
-            self.get_random_position([self.exit_pos, self.money_pos]),
-            self.get_random_position([self.exit_pos, self.money_pos])
+            self.get_random_position([self.money_pos, self.exit_pos], min_distance=5),
+            self.get_random_position([self.money_pos, self.exit_pos], min_distance=5)
         ]
         
         self.clear_area([self.thief_pos, self.money_pos, self.exit_pos] + self.police_positions)

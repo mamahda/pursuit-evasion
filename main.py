@@ -113,8 +113,18 @@ class Game:
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
         pygame.display.set_caption("Museum Heist - Escape the Police!")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(None, 24)
-        self.title_font = pygame.font.Font(None, 64)
+        
+        # Load fonts
+        font_path = "./assets/upheavtt.ttf"
+        try:
+            self.title_font = pygame.font.Font(font_path, 64)
+            self.subtitle_font = pygame.font.Font(None, 32)
+            self.font = pygame.font.Font(None, 24)
+        except:
+            print(f"[WARNING] Custom font {font_path} failed. Using default.")
+            self.title_font = pygame.font.Font(None, 64)
+            self.subtitle_font = pygame.font.Font(None, 32)
+            self.font = pygame.font.Font(None, 24)
         
         self.assets = AssetLoader()
         self.game_state = MENU
@@ -322,12 +332,18 @@ class Game:
 
     def draw_menu(self):
         """Draw menu screen"""
-        self.screen.fill((30, 30, 100))
+        # Draw gradient background
+        for y in range(WINDOW_SIZE):
+            t = y / WINDOW_SIZE
+            r = int(10 * (1 - t) + 30 * t)
+            g = int(10 * (1 - t) + 30 * t)
+            b = int(50 * (1 - t) + 100 * t)
+            pygame.draw.line(self.screen, (r, g, b), (0, y), (WINDOW_SIZE, y))
         
         title = self.title_font.render("MUSEUM HEIST", True, RED)
         self.screen.blit(title, (WINDOW_SIZE//2 - title.get_width()//2, 40))
         
-        subtitle = self.font.render("Select Level:", True, WHITE)
+        subtitle = self.subtitle_font.render("Pilih Level:", True, WHITE)
         self.screen.blit(subtitle, (WINDOW_SIZE//2 - subtitle.get_width()//2, 150))
         
         y = 200
@@ -373,16 +389,16 @@ class Game:
         # Draw HUD
         status = "Steal the Diamond!" if not self.money_collected else "ESCAPE! Police chasing!"
         color = ORANGE if not self.money_collected else RED
-        self.draw_hud_text(status, color, 10, 5)
+        self.draw_hud_text(status, color, 10, 5, self.subtitle_font)
         
         elapsed = (pygame.time.get_ticks() - self.start_time) / 1000.0 if self.timer_started else 0
-        self.draw_hud_text(f"Time: {elapsed:.1f}s", BLACK, 10, 45)
+        self.draw_hud_text(f"Time: {elapsed:.1f}s", BLACK, 10, 40, self.font)
         
         config = LEVEL_CONFIG[self.current_level]
-        self.draw_hud_text(f"Level {self.current_level}: {config['name']}", BLACK, 10, 75)
+        self.draw_hud_text(f"Level {self.current_level}: {config['name']}", BLACK, 10, 65, self.font)
         
         if self.money_collected:
-            self.draw_hud_text(f"Chaser | Interceptor ({self.interceptor_mode.upper()})", BLACK, 10, 105)
+            self.draw_hud_text(f"Chaser | Interceptor ({self.interceptor_mode.upper()})", BLACK, 10, 90, self.font)
 
         # Draw game over
         if self.game_state != PLAYING:
@@ -399,17 +415,19 @@ class Game:
                 action = "Press R for Menu | Q to Quit"
             
             text = self.title_font.render(msg, True, color)
-            score = self.font.render(f"Time: {self.elapsed_time:.2f}s", True, WHITE)
+            score = self.subtitle_font.render(f"Time: {self.elapsed_time:.2f}s", True, WHITE)
             restart = self.font.render(action, True, WHITE)
             
             cx, cy = WINDOW_SIZE // 2, WINDOW_SIZE // 2
-            self.screen.blit(text, (cx - text.get_width()//2, cy - 40))
-            self.screen.blit(score, (cx - score.get_width()//2, cy + 10))
-            self.screen.blit(restart, (cx - restart.get_width()//2, cy + 40))
+            self.screen.blit(text, (cx - text.get_width()//2, cy - 60))
+            self.screen.blit(score, (cx - score.get_width()//2, cy+10))
+            self.screen.blit(restart, (cx - restart.get_width()//2, cy + 300))
 
-    def draw_hud_text(self, text, color, x, y):
+    def draw_hud_text(self, text, color, x, y, font=None):
         """Draw HUD text with background"""
-        rendered = self.font.render(text, True, color)
+        if font is None:
+            font = self.font
+        rendered = font.render(text, True, color)
         bg = pygame.Surface((rendered.get_width() + 10, rendered.get_height() + 5))
         bg.fill(WHITE)
         bg.set_alpha(200)

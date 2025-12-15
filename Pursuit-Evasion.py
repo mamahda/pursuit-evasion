@@ -1,179 +1,255 @@
-import pygame   # Library utama untuk grafis, input pengguna, dan manajemen window game
-import heapq    # Library untuk struktur data Priority Queue untuk optimasi Algoritma A*
-import random   # Library untuk pengacakan (posisi tembok, gerakan random saat stuck)
+import pygame
+import heapq
+import random
+import urllib.request
+import os
+import sys
+import io
+
+# Ensure stdout/stderr use UTF-8 to avoid UnicodeEncodeError on Windows consoles
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    else:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 pygame.init()
 
 # ==============================================================================
-# BAGIAN 1: KONSTANTA & PENGATURAN (CONFIGURATION)
-# Variabel global yang bersifat statis (tidak berubah) untuk mengatur parameter game.
+# KONSTANTA & PENGATURAN
 # ==============================================================================
 
-# --- Pengaturan Grid (Peta) ---
-GRID_SIZE = 20       # Ukuran map (20 baris x 20 kolom).
-CELL_SIZE = 50       # Ukuran visual satu kotak dalam pixel.
-WINDOW_SIZE = GRID_SIZE * CELL_SIZE # Total ukuran jendela aplikasi (20 * 50 = 1000px).
-FPS = 10              # Frame Per Second. Diatur sangat rendah agar pergerakan AI terlihat 
-                     # patah-patah, sehingga kita bisa mengamati logika pengambilan 
-                     # keputusan mereka langkah demi langkah.
+GRID_SIZE = 15
+CELL_SIZE = 50
+WINDOW_SIZE = GRID_SIZE * CELL_SIZE
+FPS = 60  # Increased for smooth player movement
 
-# --- Definisi Warna (Format: Red, Green, Blue) ---
-WHITE = (255, 255, 255) # Background
-BLACK = (0, 0, 0)       # Tembok
-GRAY = (100, 100, 100)  # Garis pemisah grid
-RED = (255, 0, 0)       # Polisi 1 (Chaser/Pengejar)
-DARK_RED = (139, 0, 0)  # Polisi 2 (Interceptor/Pencegat)
-BLUE = (0, 100, 255)    # Pencuri
-GREEN = (0, 255, 0)     # Exit
-YELLOW = (255, 255, 0)  # Uang
-ORANGE = (255, 165, 0)  # Teks Status
+# Warna
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GRAY = (100, 100, 100)
+RED = (255, 0, 0)
+DARK_RED = (139, 0, 0)
+BLUE = (0, 100, 255)
+GREEN = (0, 255, 0)
+YELLOW = (255, 255, 0)
+ORANGE = (255, 165, 0)
 
-# --- Status Game (State Management) ---
-PLAYING = 0     # status game sedang berjalan.
-THIEF_WIN = 1   # status kondisi kemenangan pencuri.
-POLICE_WIN = 2  # status kondisi kemenangan polisi.
+# Status Game
+PLAYING = 0
+THIEF_WIN = 1
+POLICE_WIN = 2
+
+# Threshold untuk mode switch Interceptor
+INTERCEPT_DISTANCE_THRESHOLD = 5
 
 # ==============================================================================
-# BAGIAN 2: STRUKTUR DATA (CLASS NODE)
-# Elemen fundamental untuk Algoritma A* Pathfinding.
+# ASSET LOADER
+# ==============================================================================
+class AssetLoader:
+    """Load sprites dengan dukungan 4 arah (up, down, left, right)"""
+    
+    def __init__(self):
+        self.assets = {}
+        # Use script directory so assets load reliably when working dir differs
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.asset_dir = os.path.join(script_dir, "assets")
+
+        # Create assets directory if not exists
+        if not os.path.exists(self.asset_dir):
+            os.makedirs(self.asset_dir)
+
+        self.load_assets()
+    
+    def download_asset(self, url, filename):
+        """Download asset from URL"""
+        filepath = os.path.join(self.asset_dir, filename)
+        if not os.path.exists(filepath):
+            try:
+                print(f"Downloading {filename}...")
+                urllib.request.urlretrieve(url, filepath)
+                return True
+            except:
+                print(f"Failed to download {filename}")
+                return False
+        return True
+    
+    def load_assets(self):
+        """Load or create all game assets"""
+        
+        # CARA 1: Load dari file lokal (letakkan file di folder 'assets/')
+        # Uncomment baris di bawah dan comment fungsi create_* yang tidak dipakai
+        
+        self.assets['thief'] = self.load_image('thief.png')
+        self.assets['police1'] = self.load_image('police1.png')
+        self.assets['police2'] = self.load_image('police2.png')
+        self.assets['money'] = self.load_image('money.png')
+        # self.assets['exit'] = self.load_image('exit.png')
+        # self.assets['wall'] = self.load_image('wall.png')
+        # self.assets['floor'] = self.load_image('floor.png')
+        
+        # CARA 2: Gunakan sprite buatan sendiri (default)
+        #self.assets['thief'] = self.create_thief_sprite()
+        #self.assets['police1'] = self.create_police_sprite(RED)
+        #self.assets['police2'] = self.create_police_sprite(DARK_RED)
+        #self.assets['money'] = self.create_money_sprite()
+        self.assets['exit'] = self.create_exit_sprite()
+        self.assets['wall'] = self.create_wall_sprite()
+        self.assets['floor'] = self.create_floor_sprite()
+    
+    def load_image(self, filename):
+        """Load dan resize image dari folder assets"""
+        try:
+            filepath = os.path.join(self.asset_dir, filename)
+            image = pygame.image.load(filepath)
+            # Resize ke ukuran cell
+            image = pygame.transform.scale(image, (CELL_SIZE, CELL_SIZE))
+            return image
+        except Exception as e:
+            print(f"[WARNING] Tidak dapat load {filename}, menggunakan sprite default")
+            # Fallback ke sprite default jika file tidak ditemukan
+            surf = pygame.Surface((CELL_SIZE, CELL_SIZE), pygame.SRCALPHA)
+            surf.fill((255, 0, 255))  # Magenta untuk menandai missing sprite
+            return surf
+    
+    def create_exit_sprite(self):
+        """Create exit door sprite"""
+        surf = pygame.Surface((CELL_SIZE, CELL_SIZE), pygame.SRCALPHA)
+        
+        # Door frame
+        pygame.draw.rect(surf, (101, 67, 33), (5, 0, CELL_SIZE - 10, CELL_SIZE))
+        
+        # Door
+        pygame.draw.rect(surf, (70, 130, 70), (8, 3, CELL_SIZE - 16, CELL_SIZE - 6))
+        
+        # Door handle
+        pygame.draw.circle(surf, YELLOW, (CELL_SIZE - 15, CELL_SIZE // 2), 4)
+        
+        # Exit sign
+        pygame.draw.rect(surf, GREEN, (10, 5, CELL_SIZE - 20, 8))
+        
+        return surf
+    
+    def create_wall_sprite(self):
+        """Create wall tile sprite"""
+        surf = pygame.Surface((CELL_SIZE, CELL_SIZE))
+        surf.fill((80, 80, 80))
+        
+        # Brick pattern
+        brick_color = (60, 60, 60)
+        mortar_color = (90, 90, 90)
+        
+        surf.fill(mortar_color)
+        
+        # Draw bricks
+        for y in range(0, CELL_SIZE, 15):
+            offset = 0 if (y // 15) % 2 == 0 else 20
+            for x in range(-20 + offset, CELL_SIZE, 40):
+                pygame.draw.rect(surf, brick_color, (x, y, 38, 13))
+        
+        return surf
+    
+    def create_floor_sprite(self):
+        """Create floor tile sprite"""
+        surf = pygame.Surface((CELL_SIZE, CELL_SIZE))
+        
+        # Checkered floor
+        color1 = (200, 200, 200)
+        color2 = (180, 180, 180)
+        
+        surf.fill(color1)
+        pygame.draw.rect(surf, color2, (0, 0, CELL_SIZE//2, CELL_SIZE//2))
+        pygame.draw.rect(surf, color2, (CELL_SIZE//2, CELL_SIZE//2, CELL_SIZE//2, CELL_SIZE//2))
+        
+        return surf
+
+# ==============================================================================
+# NODE CLASS
 # ==============================================================================
 class Node:
-    """
-    Representasi dari satu 'titik' atau 'kotak' dalam peta pencarian jalur.
-    Objek ini menyimpan data matematis yang dibutuhkan algoritma A* untuk menilai
-    apakah jalur yang melewatinya efisien atau tidak.
-    """
     def __init__(self, pos, g=0, h=0, parent=None):
-        """
-        Inisialisasi Node baru.
-        
-        Args:
-            pos (tuple): Koordinat (x, y) dari node ini di grid.
-            g (int): 'Cost From Start'. Jarak langkah riil dari titik Awal ke titik ini.
-            h (int): 'Heuristic Cost'. Estimasi jarak dari titik ini ke titik Tujuan 
-                     (biasanya menggunakan Manhattan Distance).
-            parent (Node): Referensi ke Node sebelumnya yang menuntun ke node ini. 
-                           Digunakan untuk melacak mundur (backtracking) jalur akhir.
-        """
         self.pos = pos
         self.g = g
         self.h = h
-        self.f = g + h  # F-Score = G + H. Nilai total yang menentukan prioritas node.
+        self.f = g + h
         self.parent = parent
 
     def __lt__(self, other):
-        """
-        Logika perbandingan (Less Than).
-        Fungsi ini dipanggil otomatis oleh Priority Queue (heapq) untuk mengurutkan antrian.
-        
-        Logika:
-        Node dengan nilai F lebih kecil dianggap 'lebih baik' dan akan diproses duluan.
-        """
         return self.f < other.f
 
 # ==============================================================================
-# BAGIAN 3: LOGIKA UTAMA GAME (CLASS GAME)
-# Kelas ini membungkus seluruh logika, AI, dan rendering game.
+# GAME CLASS
 # ==============================================================================
 class Game:
     def __init__(self):
-        """
-        Konstruktor Utama.
-        Menyiapkan jendela aplikasi, font, jam sistem, dan memanggil fungsi reset 
-        untuk memulai sesi permainan baru.
-        """
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
-        pygame.display.set_caption("Global Optimal Search: Interception & Chasing")
+        pygame.display.set_caption("Museum Heist - Escape the Police!")
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 36)
+        self.small_font = pygame.font.Font(None, 24)
+        
+        # Load assets
+        self.assets = AssetLoader()
+        
+        # Player control variables
+        self.move_delay = 150  # milliseconds between moves
+        self.last_move_time = 0
+        
+        # Police mode tracking
+        self.interceptor_mode = "intercept"  # "intercept" atau "chase"
+        
         self.reset_game()
 
     def reset_game(self):
-        """
-        Menginisialisasi ulang (Reset) seluruh variabel permainan ke kondisi awal.
-        
-        Tujuan:
-        1. Membersihkan peta dari permainan sebelumnya.
-        2. Menentukan posisi awal karakter (Pencuri di kiri atas, Polisi di kanan).
-        3. Membuat tembok acak baru.
-        4. Mereset status kemenangan/kekalahan.
-        """
-        # Array 2D merepresentasikan peta: 0 = Jalan, 1 = Tembok
         self.grid = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
         
-        # Posisi Awal
         self.thief_pos = [1, 1]
-        self.thief_prev_pos = [1, 1] # Variabel untuk menghitung vektor arah gerak pencuri
+        self.thief_prev_pos = [1, 1]
         
         self.money_pos = [GRID_SIZE // 2, GRID_SIZE // 2]
         self.exit_pos = [GRID_SIZE - 2, 1]
 
-        # Posisi Polisi
         self.police_positions = [
-            [GRID_SIZE - 2, GRID_SIZE - 2], # Index 0: Chaser
-            [GRID_SIZE - 2, 1]              # Index 1: Interceptor
+            [GRID_SIZE - 2, GRID_SIZE - 2],
+            [GRID_SIZE - 2, 0]
         ]
         
-        self.police_paths = [[], []] # Menyimpan jalur visualisasi polisi
-        self.thief_path = []         # Menyimpan jalur visualisasi pencuri
+        self.police_paths = [[], []]
+        self.police_move_delay = 200
+        self.last_police_move = 0
 
-        self.generate_walls() # Panggil fungsi pembuat tembok
+        self.generate_walls()
         
         self.money_collected = False
         self.game_state = PLAYING
+        self.moves_count = 0
+        self.interceptor_mode = "intercept"
 
     def generate_walls(self):
-        """
-        Algoritma Pembangkit Level Sederhana.
-        
-        Logika:
-        1. Mengisi 30% dari total grid dengan tembok secara acak.
-        2. SAFETY CHECK: Melakukan iterasi di sekitar posisi spawn karakter (Pencuri, 
-           Polisi, Uang, Exit) dan menghapus tembok di sekitarnya.
-           Ini mencegah bug "Spawn Kill" di mana karakter muncul terjebak di dalam tembok.
-        """
-        wall_count = int(GRID_SIZE * GRID_SIZE * 0.50)
+        wall_count = int(GRID_SIZE * GRID_SIZE * 0.30)
         for _ in range(wall_count):
             x = random.randint(1, GRID_SIZE - 2)
             y = random.randint(1, GRID_SIZE - 2)
             self.grid[y][x] = 1
 
-        # Area aman (Spawn Point Cleaning)
         positions_to_clear = [self.thief_pos, self.money_pos, self.exit_pos] + self.police_positions
         
         for pos in positions_to_clear:
             cx, cy = pos
-            for dy in range(-1, 2):      # Hapus area 3x3 sekitar posisi penting
-                for dx in range(-1, 2):
+            for dy in range(-2, 3):
+                for dx in range(-2, 3):
                     ny, nx = cy + dy, cx + dx
                     if 0 <= ny < GRID_SIZE and 0 <= nx < GRID_SIZE:
                         self.grid[ny][nx] = 0
 
     def manhattan_distance(self, pos1, pos2):
-        """
-        Fungsi Heuristik (H-Score).
-        
-        Tujuan:
-        Menghitung estimasi jarak terdekat antara dua titik dalam sistem Grid.
-        
-        Logika:
-        Menggunakan |x1 - x2| + |y1 - y2| karena karakter tidak bisa bergerak diagonal,
-        melainkan harus menyusuri sumbu X dan Y (seperti taksi di blok kota).
-        """
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
     def get_neighbors(self, pos):
-        """
-        Mencari tetangga yang valid untuk pergerakan karakter.
-        
-        Logika:
-        1. Cek 4 arah mata angin (Atas, Bawah, Kiri, Kanan).
-        2. Validasi Batas: Pastikan koordinat tidak keluar dari window game.
-        3. Validasi Tembok: Pastikan koordinat grid bernilai 0 (Bukan Tembok).
-        
-        Return:
-            List berisi koordinat [x, y] tetangga yang bisa dilewati.
-        """
         neighbors = []
         directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
         
@@ -185,25 +261,6 @@ class Game:
         return neighbors
 
     def a_star(self, start, goal, cost_grid=None):
-        """
-        Implementasi Algoritma Pencarian Jalur A* (A-Star).
-        
-        Ini adalah otak navigasi dari game ini.
-        
-        Fitur Khusus 'Weighted Search':
-        Fungsi ini menerima parameter opsional 'cost_grid'.
-        - Jika cost_grid kosong: Berjalan sebagai A* standar (Shortest Path).
-        - Jika cost_grid ada: Berjalan sebagai A* Berbobot (Cheapest Path). 
-          Ini digunakan Pencuri untuk menghindari zona bahaya polisi.
-          
-        Cara Kerja:
-        1. Masukkan node awal ke Priority Queue (Open List).
-        2. Loop sampai Open List kosong atau Tujuan ditemukan.
-        3. Ambil node dengan biaya F terendah.
-        4. Eksplorasi tetangga, hitung G (biaya jalan) dan H (jarak sisa).
-        5. Jika menemukan jalur lebih efisien ke tetangga, update jalurnya.
-        6. Jika sampai tujuan, lakukan Backtracking (Parent -> Parent) untuk menyusun jalur.
-        """
         if cost_grid is None:
             cost_grid = [[1 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
@@ -220,7 +277,7 @@ class Game:
                 while current.parent:
                     path.append(list(current.pos))
                     current = current.parent
-                return path[::-1] # Return jalur dari Start ke Goal
+                return path[::-1]
 
             if current.pos in closed_set:
                 continue
@@ -232,7 +289,6 @@ class Game:
                 if neighbor_tuple in closed_set:
                     continue
 
-                # Ambil biaya langkah dari cost_grid (default 1 atau 500 jika dekat polisi)
                 move_cost = cost_grid[neighbor[1]][neighbor[0]]
                 tentative_g = current.g + move_cost
 
@@ -242,103 +298,56 @@ class Game:
                     neighbor_node = Node(neighbor_tuple, tentative_g, h, current)
                     heapq.heappush(open_list, neighbor_node)
 
-        return [] # Return list kosong jika tidak ada jalur (terkurung)
+        return []
 
-    def create_safety_map(self):
-        """
-        Membangun 'Peta Keamanan' (Heatmap) untuk AI Pencuri.
-        
-        Tujuan:
-        Memberikan "biaya" (cost) pada setiap kotak di grid.
-        - Kotak biasa = Biaya 1.
-        - Kotak dekat polisi = Biaya Tinggi (Mahal).
-        
-        Logika Matematika:
-        Menggunakan fungsi eksponensial terbalik.
-        Cost = Base + (Radius - Jarak)**2 * Multiplier
-        Artinya: Semakin dekat jarak ke polisi, biaya akan melonjak drastis.
-        A* akan melihat ini sebagai "jalan macet parah" dan otomatis mencari jalan memutar.
-        """
-        cost_grid = [[1 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
-
-        # Set tembok jadi Infinity
-        for y in range(GRID_SIZE):
-            for x in range(GRID_SIZE):
-                if self.grid[y][x] == 1:
-                    cost_grid[y][x] = float('inf')
-
-        if not self.money_collected:
-            for p_pos in self.police_positions:
-                cost_grid[p_pos[1]][p_pos[0]] = float('inf')
-            return cost_grid
-
-        danger_radius = 6
-        base_danger_cost = 50
-        multiplier = 100
-
-        for police_pos in self.police_positions:
-            for dy in range(-danger_radius, danger_radius + 1):
-                for dx in range(-danger_radius, danger_radius + 1):
-                    py = police_pos[1] + dy
-                    px = police_pos[0] + dx
-                    
-                    if 0 <= py < GRID_SIZE and 0 <= px < GRID_SIZE:
-                        if self.grid[py][px] == 0:
-                            distance = abs(dx) + abs(dy)
-                            if distance <= danger_radius:
-                                # Hitung biaya tambahan berdasarkan kedekatan
-                                added_cost = (danger_radius - distance) ** 2 * multiplier
-                                # Gunakan max() untuk mengambil risiko terbesar jika area tumpang tindih
-                                current_cost = cost_grid[py][px]
-                                new_cost = base_danger_cost + added_cost
-                                cost_grid[py][px] = max(current_cost, new_cost)
-
-        return cost_grid
-
-    def update_thief(self):
-        """
-        Mengelola Kecerdasan Buatan (AI) Pencuri.
-        Dijalankan setiap frame.
-        
-        Langkah-langkah:
-        1. Simpan posisi saat ini ke 'prev_pos' (agar polisi bisa memprediksi arah geraknya).
-        2. Tentukan Tujuan: Jika belum ada uang -> Ke Uang. Jika sudah -> Ke Exit.
-        3. Buat Safety Map untuk mendeteksi bahaya.
-        4. Jalankan A* dengan Safety Map tersebut (Weighted A*).
-        5. Lakukan pergerakan.
-        """
+    def handle_player_input(self):
+        """Handle keyboard input for player movement"""
         if self.game_state != PLAYING:
             return
-
-        self.thief_prev_pos = list(self.thief_pos)
-        target = self.money_pos if not self.money_collected else self.exit_pos
         
-        cost_grid = self.create_safety_map()
-        self.thief_path = self.a_star(self.thief_pos, target, cost_grid)
-
-        if self.thief_path:
-            self.thief_pos = self.thief_path.pop(0)
-
-        # Cek kondisi objektif
-        if self.thief_pos == self.money_pos and not self.money_collected:
-            self.money_collected = True
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_move_time < self.move_delay:
+            return
         
-        if self.thief_pos == self.exit_pos and self.money_collected:
-            self.game_state = THIEF_WIN
+        keys = pygame.key.get_pressed()
+        new_pos = list(self.thief_pos)
+        moved = False
+        
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
+            new_pos[1] -= 1
+            moved = True
+        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            new_pos[1] += 1
+            moved = True
+        elif keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            new_pos[0] -= 1
+            moved = True
+        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            new_pos[0] += 1
+            moved = True
+        
+        if moved:
+            # Check if move is valid
+            if (0 <= new_pos[0] < GRID_SIZE and 
+                0 <= new_pos[1] < GRID_SIZE and 
+                self.grid[new_pos[1]][new_pos[0]] == 0):
+                
+                self.thief_prev_pos = list(self.thief_pos)
+                self.thief_pos = new_pos
+                self.last_move_time = current_time
+                self.moves_count += 1
+                
+                # Check objectives
+                if self.thief_pos == self.money_pos and not self.money_collected:
+                    self.money_collected = True
+                
+                if self.thief_pos == self.exit_pos and self.money_collected:
+                    self.game_state = THIEF_WIN
 
     def get_intercept_target(self):
         """
-        Algoritma Prediksi Pergerakan (Predictive Logic).
-        Digunakan KHUSUS oleh Polisi 2 (Interceptor).
-        
-        Logika:
-        1. Hitung vektor arah gerak pencuri (Posisi Sekarang - Posisi Kemarin).
-        2. Kalikan vektor itu dengan 5 (Prediksi 5 langkah ke depan).
-        3. Cek apakah titik prediksi itu valid (bukan tembok).
-        4. Jika tidak valid, kurangi jarak prediksi perlahan hingga menemukan titik valid.
-        
-        Return:
-            Koordinat [x, y] tempat pencuri diperkirakan akan berada.
+        Prediksi posisi thief 5 langkah ke depan berdasarkan vektor geraknya.
+        Hanya digunakan jika thief cukup jauh dari interceptor.
         """
         dx = self.thief_pos[0] - self.thief_prev_pos[0]
         dy = self.thief_pos[1] - self.thief_prev_pos[1]
@@ -353,29 +362,21 @@ class Game:
                 if self.grid[int(ty)][int(tx)] == 0:
                     return [int(tx), int(ty)]
         
-        return self.thief_pos 
+        return self.thief_pos
 
     def update_police(self):
-        """
-        Mengelola Kecerdasan Buatan (AI) Kedua Polisi (Global Optimal Strategy).
-        
-        Strategi Polisi 1 (Chaser):
-        - Menggunakan A* murni ke posisi pencuri SAAT INI.
-        - Perilaku: Agresif, menekan dari belakang.
-        
-        Strategi Polisi 2 (Interceptor):
-        - Menggunakan Predictive A* ke posisi pencuri DI MASA DEPAN (dari get_intercept_target).
-        - Perilaku: Taktis, memotong jalan dari depan.
-        
-        Fitur Anti-Stuck (Random Restart):
-        - Jika A* gagal menemukan jalan (misal karena target ada di dalam tembok tertutup),
-          polisi akan melakukan gerakan acak 1 langkah ke tetangga.
-        - Ini mencegah AI 'membeku' (freeze) saat menghadapi jalan buntu kalkulasi.
-        """
         if self.game_state != PLAYING or not self.money_collected:
-            return 
+            return
+        
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_police_move < self.police_move_delay:
+            return
+        
+        self.last_police_move = current_time
 
-        # --- LOGIKA POLISI 1 (CHASER) ---
+        # ==========================================
+        # POLISI 1 (CHASER) - Selalu kejar langsung
+        # ==========================================
         path_0 = self.a_star(self.police_positions[0], self.thief_pos)
         self.police_paths[0] = path_0
         
@@ -383,127 +384,171 @@ class Game:
             self.police_positions[0] = path_0.pop(0)
         else:
             neighbors = self.get_neighbors(self.police_positions[0])
-            if neighbors: self.police_positions[0] = random.choice(neighbors)
+            if neighbors:
+                self.police_positions[0] = random.choice(neighbors)
 
-        # --- LOGIKA POLISI 2 (INTERCEPTOR) ---
-        intercept_pos = self.get_intercept_target()
-        path_1 = self.a_star(self.police_positions[1], intercept_pos)
+        # ==========================================
+        # POLISI 2 (INTERCEPTOR) - Mode Dinamis
+        # ==========================================
+        
+        # Hitung jarak Manhattan ke thief
+        distance_to_thief = self.manhattan_distance(self.police_positions[1], self.thief_pos)
+        
+        # LOGIKA SWITCH MODE:
+        # - Jika jarak <= THRESHOLD (5 langkah): Mode CHASE (kejar langsung)
+        # - Jika jarak > THRESHOLD: Mode INTERCEPT (prediksi 5 langkah ke depan)
+        
+        if distance_to_thief <= INTERCEPT_DISTANCE_THRESHOLD:
+            # MODE CHASE: Terlalu dekat, kejar langsung untuk menghindari bug mundur
+            self.interceptor_mode = "chase"
+            target_pos = self.thief_pos
+        else:
+            # MODE INTERCEPT: Cukup jauh, gunakan prediksi
+            self.interceptor_mode = "intercept"
+            target_pos = self.get_intercept_target()
+        
+        path_1 = self.a_star(self.police_positions[1], target_pos)
         self.police_paths[1] = path_1
 
         if path_1:
             self.police_positions[1] = path_1.pop(0)
         else:
-            # Fallback: Jika gagal intercept, kejar langsung
+            # Fallback jika tidak ada path ke target
             path_fallback = self.a_star(self.police_positions[1], self.thief_pos)
             if path_fallback:
                 self.police_positions[1] = path_fallback.pop(0)
             else:
                 neighbors = self.get_neighbors(self.police_positions[1])
-                if neighbors: self.police_positions[1] = random.choice(neighbors)
+                if neighbors:
+                    self.police_positions[1] = random.choice(neighbors)
 
-        # Cek Kondisi Menangkap
+        # Check capture
         for p_pos in self.police_positions:
             if p_pos == self.thief_pos:
                 self.game_state = POLICE_WIN
 
     def draw(self):
-        """
-        Fungsi Rendering.
-        Menggambar seluruh state permainan (Grid, Karakter, Jalur, Teks) ke layar komputer.
-        Dipanggil setiap frame.
-        """
-        self.screen.fill(WHITE) # Bersihkan layar
+        self.screen.fill(WHITE)
 
-        # Gambar Peta
+        # Draw map
         for y in range(GRID_SIZE):
             for x in range(GRID_SIZE):
                 rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                 if self.grid[y][x] == 1:
-                    pygame.draw.rect(self.screen, BLACK, rect)
+                    self.screen.blit(self.assets.assets['wall'], (x * CELL_SIZE, y * CELL_SIZE))
                 else:
-                    pygame.draw.rect(self.screen, GRAY, rect, 1)
+                    self.screen.blit(self.assets.assets['floor'], (x * CELL_SIZE, y * CELL_SIZE))
 
-        # Gambar Visualisasi Jalur AI (Debugging Visual)
-        for pos in self.thief_path:
-            rect = pygame.Rect(pos[0]*CELL_SIZE+5, pos[1]*CELL_SIZE+5, CELL_SIZE-10, CELL_SIZE-10)
-            pygame.draw.rect(self.screen, (173, 216, 230), rect) # Biru Muda
+        # Draw police paths (only when money collected)
+        if self.money_collected:
+            for pos in self.police_paths[0][:5]:  # Show only next 5 steps
+                rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
+                s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
+                s.fill((255, 200, 200, 100))
+                self.screen.blit(s, rect)
 
-        for pos in self.police_paths[0]:
-            rect = pygame.Rect(pos[0]*CELL_SIZE+5, pos[1]*CELL_SIZE+5, CELL_SIZE-10, CELL_SIZE-10)
-            pygame.draw.rect(self.screen, (255, 200, 200), rect) # Merah Muda
+            for pos in self.police_paths[1][:5]:
+                rect = pygame.Rect(pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10, CELL_SIZE-20, CELL_SIZE-20)
+                s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
+                s.fill((200, 100, 100, 100))
+                self.screen.blit(s, rect)
 
-        for pos in self.police_paths[1]:
-            rect = pygame.Rect(pos[0]*CELL_SIZE+5, pos[1]*CELL_SIZE+5, CELL_SIZE-10, CELL_SIZE-10)
-            pygame.draw.rect(self.screen, (200, 100, 100), rect) # Merah Gelap Pucat
-
-        # Gambar Objek
-        pygame.draw.rect(self.screen, GREEN, (self.exit_pos[0]*CELL_SIZE, self.exit_pos[1]*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+        # Draw objects
+        self.screen.blit(self.assets.assets['exit'], 
+                        (self.exit_pos[0]*CELL_SIZE, self.exit_pos[1]*CELL_SIZE))
+        
         if not self.money_collected:
-            pygame.draw.rect(self.screen, YELLOW, (self.money_pos[0]*CELL_SIZE, self.money_pos[1]*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+            self.screen.blit(self.assets.assets['money'], 
+                            (self.money_pos[0]*CELL_SIZE, self.money_pos[1]*CELL_SIZE))
 
-        # Gambar Karakter
-        get_center = lambda pos: (pos[0]*CELL_SIZE + CELL_SIZE//2, pos[1]*CELL_SIZE + CELL_SIZE//2)
-        pygame.draw.circle(self.screen, BLUE, get_center(self.thief_pos), CELL_SIZE//3)
-        pygame.draw.circle(self.screen, RED, get_center(self.police_positions[0]), CELL_SIZE//3)
-        pygame.draw.circle(self.screen, DARK_RED, get_center(self.police_positions[1]), CELL_SIZE//3)
+        # Draw characters
+        self.screen.blit(self.assets.assets['thief'], 
+                        (self.thief_pos[0]*CELL_SIZE, self.thief_pos[1]*CELL_SIZE))
+        
+        if self.money_collected:
+            self.screen.blit(self.assets.assets['police1'], 
+                            (self.police_positions[0][0]*CELL_SIZE, self.police_positions[0][1]*CELL_SIZE))
+            self.screen.blit(self.assets.assets['police2'], 
+                            (self.police_positions[1][0]*CELL_SIZE, self.police_positions[1][1]*CELL_SIZE))
 
-        # UI Teks
-        status = "Just a normal day in museum" if not self.money_collected else "Money has stolen, CHASE THE THIEF!"
+        # UI Text
+        status = "Steal the Diamond! (Arrow Keys/WASD)" if not self.money_collected else "ESCAPE! Police are chasing you!"
         color = ORANGE if not self.money_collected else RED
         text = self.font.render(status, True, color)
-        self.screen.blit(text, (10, 10))
+        
+        # Text background
+        bg = pygame.Surface((text.get_width() + 10, text.get_height() + 5))
+        bg.fill(WHITE)
+        bg.set_alpha(200)
+        self.screen.blit(bg, (5, 5))
+        self.screen.blit(text, (10, 5))
+
+        # Move counter
+        moves_text = self.small_font.render(f"Moves: {self.moves_count}", True, BLACK)
+        bg2 = pygame.Surface((moves_text.get_width() + 10, moves_text.get_height() + 5))
+        bg2.fill(WHITE)
+        bg2.set_alpha(200)
+        self.screen.blit(bg2, (5, 45))
+        self.screen.blit(moves_text, (10, 47))
 
         if self.money_collected:
-            role_text = self.font.render("Merah: Chaser | Merah Tua: Interceptor", True, BLACK)
-            role_text = pygame.transform.scale(role_text, (int(role_text.get_width()*0.6), int(role_text.get_height()*0.6)))
-            self.screen.blit(role_text, (10, 40))
+            # Display police roles dan mode interceptor
+            mode_text = f"Chaser | Interceptor ({self.interceptor_mode.upper()})"
+            role_text = self.small_font.render(mode_text, True, BLACK)
+            bg3 = pygame.Surface((role_text.get_width() + 10, role_text.get_height() + 5))
+            bg3.fill(WHITE)
+            bg3.set_alpha(200)
+            self.screen.blit(bg3, (5, 75))
+            self.screen.blit(role_text, (10, 77))
 
-        # Layar Akhir (Win/Lose)
+        # End screen
         if self.game_state != PLAYING:
-            msg = "PENCURI MENANG!" if self.game_state == THIEF_WIN else "TERTANGKAP!"
-            color = BLUE if self.game_state == THIEF_WIN else RED
+            overlay = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE))
+            overlay.fill(BLACK)
+            overlay.set_alpha(150)
+            self.screen.blit(overlay, (0, 0))
+            
+            msg = "YOU ESCAPED!" if self.game_state == THIEF_WIN else "CAUGHT!"
+            score_msg = f"Moves: {self.moves_count}"
+            
+            color = GREEN if self.game_state == THIEF_WIN else RED
             text = self.font.render(msg, True, color)
-            bg = pygame.Surface((text.get_width()+20, text.get_height()+20))
-            bg.fill(WHITE)
-            center_x, center_y = WINDOW_SIZE//2, WINDOW_SIZE//2
-            self.screen.blit(bg, (center_x - bg.get_width()//2, center_y - bg.get_height()//2))
-            self.screen.blit(text, (center_x - text.get_width()//2, center_y - text.get_height()//2))
+            score = self.small_font.render(score_msg, True, WHITE)
+            restart = self.small_font.render("Press R to Restart | Q to Quit", True, WHITE)
+            
+            center_x, center_y = WINDOW_SIZE // 2, WINDOW_SIZE // 2
+            
+            self.screen.blit(text, (center_x - text.get_width()//2, center_y - 40))
+            self.screen.blit(score, (center_x - score.get_width()//2, center_y + 10))
+            self.screen.blit(restart, (center_x - restart.get_width()//2, center_y + 40))
 
         pygame.display.flip()
 
     def run(self):
-        """
-        Game Loop (Jantung Permainan).
-        Fungsi ini berjalan terus menerus (infinite loop) sampai user menutup aplikasi.
-        Tugasnya: Menerima Input -> Update Logika -> Gambar ke Layar -> Ulangi.
-        """
         running = True
         while running:
-            # Event Handling
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_r: self.reset_game()
-                    elif event.key == pygame.K_q: running = False
+                    if event.key == pygame.K_r:
+                        self.reset_game()
+                    elif event.key == pygame.K_q:
+                        running = False
 
-            current_FPS = FPS
-            if self.money_collected:
-                current_FPS = 3
-
-            # Update AI
-            self.update_thief()
+            # Update
+            self.handle_player_input()
+            
+            # Check if caught
             if self.thief_pos in self.police_positions:
                 self.game_state = POLICE_WIN
+            
             self.update_police()
-            print("Chaser:", self.police_positions[0])
-            print("Interceptor:", self.police_positions[1])
-            print("Thief:", self.thief_pos)
 
             # Render
             self.draw()
-            self.clock.tick(current_FPS)
-            
+            self.clock.tick(FPS)
+        
         pygame.quit()
 
 if __name__ == "__main__":

@@ -391,7 +391,10 @@ class Game:
         color = ORANGE if not self.money_collected else RED
         self.draw_hud_text(status, color, 10, 5, self.subtitle_font)
         
-        elapsed = (pygame.time.get_ticks() - self.start_time) / 1000.0 if self.timer_started else 0
+        if self.game_state == PLAYING:
+           elapsed = (pygame.time.get_ticks() - self.start_time) / 1000.0 if self.timer_started else 0
+        else :
+           elapsed = self.elapsed_time
         self.draw_hud_text(f"Time: {elapsed:.1f}s", BLACK, 10, 40, self.font)
         
         config = LEVEL_CONFIG[self.current_level]
@@ -415,7 +418,7 @@ class Game:
                 action = "Press R for Menu | Q to Quit"
             
             text = self.title_font.render(msg, True, color)
-            score = self.subtitle_font.render(f"Time: {self.elapsed_time:.2f}s", True, WHITE)
+            score = self.subtitle_font.render(f"Time: {self.elapsed_time:.1f}s", True, WHITE)
             restart = self.font.render(action, True, WHITE)
             
             cx, cy = WINDOW_SIZE // 2, WINDOW_SIZE // 2

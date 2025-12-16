@@ -734,7 +734,7 @@ class Game:
         self.screen.blit(self.assets.assets['police2'], (self.police_positions[1][0]*CELL_SIZE, self.police_positions[1][1]*CELL_SIZE))
 
         # Draw HUD 
-        status = "Steal the Diamond!" if not self.money_collected else "ESCAPE! Police chasing!"
+        status = "Steal the Gold!" if not self.money_collected else "ESCAPE! Police chasing!"
         color = ORANGE if not self.money_collected else RED
         self.draw_hud_text(status, color, 10, 5, self.subtitle_font)
         

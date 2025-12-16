@@ -568,7 +568,7 @@ class Game:
             text = self.font.render(f"Level {level}: {config['name']}", True, color)
             self.screen.blit(text, (200, y))
             if level == self.selected_level:
-                pygame.draw.circle(self.screen, color, (180, y + 12), 5)
+                pygame.draw.circle(self.screen, color, (180, y + 8), 5)
             y += 40
         
         info = self.font.render("ENTER to Start", True, (150, 150, 150))

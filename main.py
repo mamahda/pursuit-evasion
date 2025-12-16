@@ -746,9 +746,6 @@ class Game:
         
         config = LEVEL_CONFIG[self.current_level]
         self.draw_hud_text(f"Level {self.current_level}: {config['name']}", BLACK, 10, 65, self.font)
-        
-        if self.money_collected:
-            self.draw_hud_text(f"Chaser | Interceptor ({self.interceptor_mode.upper()})", BLACK, 10, 90, self.font)
 
         # Draw game over / win screen
         if self.game_state != PLAYING:

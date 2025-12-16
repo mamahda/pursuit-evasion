@@ -495,8 +495,8 @@ class Game:
                   (tidak termasuk titik awal). Jika tidak ada jalur, kembalikan daftar kosong `[]`.
         """
         start_node = Node(tuple(start), 0, self.manhattan_distance(start, goal))
-        open_list = [start_node] # Priority queue (heap) untuk simpul yang akan dievaluasi
-        closed_set = set()       # Simpul yang sudah selesai dievaluasi
+        open_list = [start_node]     # Priority queue (heap) untuk simpul yang akan dievaluasi
+        closed_set = set()           # Simpul yang sudah selesai dievaluasi
         g_scores = {tuple(start): 0} # Biaya G terpendek yang ditemukan sejauh ini
 
         while open_list:

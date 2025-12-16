@@ -14,10 +14,10 @@ except Exception:
 # ==============================================================================
 # CONSTANTS (KONSTANTA)
 # ==============================================================================
-GRID_SIZE = 17          # Ukuran grid 
-CELL_SIZE = 43          # Ukuran satu sel/kotak dalam piksel
+GRID_SIZE = 17                      # Ukuran grid 
+CELL_SIZE = 43                      # Ukuran satu sel/kotak dalam piksel
 WINDOW_SIZE = GRID_SIZE * CELL_SIZE # Ukuran total jendela game (GRID_SIZE * CELL_SIZE)
-FPS = 60                # Frame per second (Kecepatan update layar)
+FPS = 60                            # Frame per second (Kecepatan update layar)
 
 # Colors (Warna-warna dasar)
 WHITE = (255, 255, 255)
@@ -32,9 +32,9 @@ MENU, PLAYING, THIEF_WIN, POLICE_WIN = -1, 0, 1, 2
 # -1: Menu Utama, 0: Sedang Bermain, 1: Pencuri Menang, 2: Polisi Menang
 
 # Game Settings (Pengaturan Permainan)
-INTERCEPT_DISTANCE = 5  # Jarak Manhattan di mana Polisi 2 beralih ke mode 'chase' (kejar langsung)
-MOVE_DELAY = 150        # Waktu tunda minimum (ms) antara gerakan pencuri (membuat gerakan berbasis giliran/langkah)
-POLICE_PATH_VISUALIZATION = 0 # Tampilkan jalur prediksi polisi (untuk debugging/visualisasi)
+INTERCEPT_DISTANCE = 5          # Jarak Manhattan di mana Polisi 2 beralih ke mode 'chase' (kejar langsung)
+MOVE_DELAY = 150                # Waktu tunda minimum (ms) antara gerakan pencuri (membuat gerakan berbasis giliran/langkah)
+POLICE_PATH_VISUALIZATION = 0   # Tampilkan jalur prediksi polisi (untuk debugging/visualisasi)
 
 # Konfigurasi Level Permainan
 LEVEL_CONFIG = {
@@ -143,11 +143,11 @@ class AssetLoader:
             pygame.Surface: Sprite dinding.
         """
         surf = pygame.Surface((CELL_SIZE, CELL_SIZE))
-        surf.fill((90, 90, 90)) # Warna dasar dinding (abu-abu gelap)
+        surf.fill((90, 90, 90))
         for y in range(0, CELL_SIZE, 15):
-            offset = 0 if (y // 15) % 2 == 0 else 20 # Geser baris bata
+            offset = 0 if (y // 15) % 2 == 0 else 20
             for x in range(-20 + offset, CELL_SIZE, 40):
-                pygame.draw.rect(surf, (60, 60, 60), (x, y, 38, 13)) # Gambar bata
+                pygame.draw.rect(surf, (60, 60, 60), (x, y, 38, 13))
         return surf
 
     def create_floor_sprite(self):
@@ -720,7 +720,7 @@ class Game:
                 for i, path in enumerate(self.police_paths):
                     alpha = 100 if i == 0 else 80 
                     color = (255, 200, 200, alpha) if i == 0 else (200, 100, 100, alpha)
-                    for pos in path[:5]: 
+                    for pos in path: 
                         s = pygame.Surface((CELL_SIZE-20, CELL_SIZE-20), pygame.SRCALPHA)
                         s.fill(color)
                         self.screen.blit(s, (pos[0]*CELL_SIZE+10, pos[1]*CELL_SIZE+10))

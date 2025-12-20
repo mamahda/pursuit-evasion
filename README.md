@@ -1,189 +1,165 @@
-#  AI Pathfinding Game: Thief vs Police
+# Museum Heist - Escape the Police! 🏛️💰
 
-Simulasi game berbasis AI yang mendemonstrasikan algoritma **A* Pathfinding**, **Predictive Movement**, dan **Strategic Interception** dalam skenario pengejaran polisi dan pencuri.
+Game berbasis Python-Pygame di mana pemain berperan sebagai pencuri yang harus mencuri emas dari museum dan melarikan diri dari dua polisi AI yang cerdas.
 
+## 📋 Deskripsi
 
-##  Deskripsi
+Museum Heist adalah game strategi real-time di mana Anda harus:
+1. **Mencuri emas** dari museum
+2. **Menghindari dua polisi AI** yang menggunakan algoritma A* untuk mengejar Anda
+3. **Melarikan diri** melalui pintu keluar
 
-Game ini mensimulasikan pengejaran cerdas antara satu pencuri dan dua polisi dalam maze dinamis. Setiap karakter menggunakan algoritma AI yang berbeda:
+Game ini menampilkan dua polisi dengan strategi berbeda:
+- **Polisi 1 (Chaser)**: Mengejar posisi Anda saat ini secara langsung
+- **Polisi 2 (Interceptor)**: Memprediksi gerakan Anda dan mencoba memotong jalur pelarian
 
-- **Pencuri (Biru)**: Menggunakan **Weighted A*** dengan safety heatmap untuk menghindari zona bahaya polisi
-- **Polisi 1 - Chaser (Merah)**: Menggunakan **A*** **murni** untuk mengejar posisi pencuri secara langsung
-- **Polisi 2 - Interceptor (Merah Tua)**: Menggunakan **Predictive A*** untuk memotong jalur pencuri di beberapa langkah ke depan
+## 🎮 Fitur Utama
 
-##  Fitur Utama
+- **5 Level Kesulitan** dengan tingkat kompleksitas berbeda
+- **AI Polisi Cerdas** menggunakan algoritma pathfinding A*
+- **Sistem Prediksi Gerakan** untuk polisi interceptor
+- **Grid Dinamis** dengan dinding yang dihasilkan secara acak
+- **Sistem Audio** dengan musik latar dan efek suara
+- **Timer** untuk mencatat waktu pelarian Anda
+- **Sprite Prosedural** yang dihasilkan secara otomatis jika aset tidak tersedia
 
-###  Algoritma AI
-- **A* Pathfinding**: Pencarian jalur optimal dengan heuristik Manhattan Distance
-- **Weighted A***: Pathfinding dengan cost map dinamis untuk penghindaran bahaya
-- **Predictive Movement**: Prediksi 5 langkah ke depan berdasarkan vektor kecepatan
-- **Safety Heatmap**: Sistem pembobotan area berbahaya dengan fungsi eksponensial
+## 🛠️ Instalasi
 
-###  Gameplay
-- **Tujuan Pencuri**: Ambil uang → Kabur ke Exit
-- **Tujuan Polisi**: Tangkap pencuri sebelum sampai Exit
-- **Dynamic Maze**: Maze acak 20x20 dengan 50% wall density
-- **Real-time Visualization**: Visualisasi jalur AI secara real-time
+### Persyaratan Sistem
+- Python 3.7 atau lebih baru
+- Pygame
 
-###  Safety Mechanism
-- Anti-stuck system dengan random restart
-- Spawn protection untuk area karakter
-- Fallback behavior saat pathfinding gagal
+### Langkah Instalasi
 
-##  Instalasi
-
-### Requirements
+1. **Clone atau download repository ini**
 ```bash
-Python 3.7+
-pygame 2.0+
+git clone <repository-url>
+cd museum-heist
 ```
 
-### Install Dependencies
+2. **Install dependencies**
 ```bash
 pip install pygame
 ```
 
-### Jalankan Game
+3. **Jalankan game**
 ```bash
-python Pursuit-Evasion.py
+python museum_heist.py
 ```
 
-##  Kontrol
+## 🎯 Cara Bermain
 
-| Tombol | Fungsi |
-|--------|--------|
-| `R` | Reset game (mulai baru) |
-| `Q` | Quit (keluar dari game) |
+### Kontrol
+- **W / ↑**: Gerak ke atas
+- **S / ↓**: Gerak ke bawah
+- **A / ←**: Gerak ke kiri
+- **D / →**: Gerak ke kanan
+- **ENTER**: Mulai game (di menu)
+- **R**: Kembali ke menu (saat bermain)
+- **N**: Lanjut ke level berikutnya (setelah menang)
+- **Q**: Keluar game
 
-##  Struktur Kode
+### Objektif
+1. Navigasikan pencuri (karakter pink/magenta) ke emas (kuning)
+2. Setelah mengambil emas, polisi akan mulai mengejar
+3. Hindari kedua polisi (biru dan biru muda)
+4. Capai pintu keluar (hijau) untuk menang
 
-```
-├── BAGIAN 1: KONSTANTA & PENGATURAN
-│   ├── Grid Configuration (20x20)
-│   ├── Color Definitions
-│   └── Game States
-│
-├── BAGIAN 2: STRUKTUR DATA
-│   └── Class Node (untuk A* Algorithm)
-│
-└── BAGIAN 3: LOGIKA UTAMA
-    ├── Game Initialization
-    ├── Maze Generation
-    ├── A* Pathfinding
-    ├── Safety Map Creation
-    ├── AI Updates (Thief & Police)
-    └── Rendering System
-```
+### Level Kesulitan
 
-##  Cara Kerja Algoritma
+| Level | Nama | Dinding | Kecepatan Polisi |
+|-------|------|---------|------------------|
+| 1 | Easy | 25% | Lambat (300ms) |
+| 2 | Normal | 30% | Sedang (200ms) |
+| 3 | Hard | 35% | Cepat (180ms) |
+| 4 | Expert | 35% | Sangat Cepat (150ms) |
+| 5 | Impossible | 40% | Ekstrem (120ms) |
 
-### 1. A* Pathfinding
+## 🏗️ Struktur Code
+
+### Kelas Utama
+
+#### `AssetLoader`
+Mengelola pemuatan dan pembuatan aset game:
+- Gambar sprite (pencuri, polisi, uang, dll.)
+- File audio (musik latar, efek suara)
+- Sprite prosedural sebagai fallback
+
+#### `Node`
+Kelas untuk algoritma A* pathfinding:
+- Menyimpan posisi, biaya (g, h, f)
+- Parent node untuk rekonstruksi jalur
+
+#### `Game`
+Kelas utama yang mengelola:
+- Game state dan loop
+- Input handling
+- Logika AI polisi
+- Rendering dan HUD
+- Sistem audio
+
+### Algoritma Kunci
+
+#### A* Pathfinding
 ```python
-F(n) = G(n) + H(n)
+def a_star(self, start, goal):
+    # Mencari jalur terpendek dari start ke goal
+    # Menggunakan Manhattan distance sebagai heuristik
+    # Menghindari dinding dalam grid
 ```
-- **G(n)**: Jarak riil dari start ke node n
-- **H(n)**: Estimasi jarak dari node n ke goal (Manhattan Distance)
-- **F(n)**: Total cost (prioritas node)
 
-### 2. Safety Heatmap
+#### Prediksi Interceptor
 ```python
-Cost = Base + (Radius - Distance)² × Multiplier
+def get_intercept_target(self):
+    # Memprediksi posisi pencuri 1-5 langkah ke depan
+    # Berdasarkan arah gerakan terakhir
+    # Untuk memotong jalur pelarian
 ```
-- Kotak dekat polisi = cost tinggi (mahal)
-- Kotak jauh dari polisi = cost rendah (murah)
-- A* otomatis memilih jalur "termurah"
 
-### 3. Predictive Interception
-```python
-PredictedPos = CurrentPos + (Velocity × Steps)
-```
-- Hitung vektor kecepatan pencuri
-- Prediksi 5 langkah ke depan
-- Polisi interceptor menuju posisi prediksi
+## 🎨 Aset
 
-##  Visualisasi
+Game mendukung aset custom yang dapat ditempatkan di folder `assets/`:
+- `thief.png` - Sprite pencuri
+- `police1.png` - Sprite polisi 1
+- `police2.png` - Sprite polisi 2
+- `money.png` - Sprite emas
+- `running.mp3` - Musik pengejaran
+- `before.mp3` - Musik sebelum pencurian
+- `win.mp3` - Efek suara menang
+- `lose.mp3` - Efek suara kalah
+- `upheavtt.ttf` - Font judul (opsional)
 
-| Warna | Representasi |
-|-------|-------------|
-| 🟦 **Biru** | Pencuri |
-| 🟥 **Merah** | Polisi 1 (Chaser) |
-| 🟫 **Merah Tua** | Polisi 2 (Interceptor) |
-| 🟨 **Kuning** | Uang |
-| 🟩 **Hijau** | Exit |
-| ⬛ **Hitam** | Tembok |
-| 🟦 **Biru Muda** | Jalur Pencuri |
-| 🟥 **Merah Muda** | Jalur Polisi 1 |
-| 🟫 **Merah Gelap** | Jalur Polisi 2 |
+**Catatan**: Jika aset tidak tersedia, game akan otomatis membuat sprite sederhana sebagai pengganti.
 
-##  Konfigurasi
+## ⚙️ Konfigurasi
 
-Anda dapat menyesuaikan parameter game di bagian `KONSTANTA`:
+Anda dapat menyesuaikan pengaturan game di bagian CONSTANTS:
 
 ```python
-GRID_SIZE = 20        # Ukuran map (20x20)
-CELL_SIZE = 50        # Ukuran cell dalam pixel
-FPS = 10              # Frame rate normal
-wall_density = 0.50   # 50% wall coverage
-
-# Safety Heatmap Parameters
-danger_radius = 6          # Radius zona bahaya polisi
-base_danger_cost = 50      # Cost dasar zona bahaya
-multiplier = 100           # Pengali cost eksponensial
+GRID_SIZE = 17              # Ukuran grid (17x17)
+CELL_SIZE = 43              # Ukuran sel dalam pixel
+FPS = 60                    # Frame per detik
+INTERCEPT_DISTANCE = 5      # Jarak mode intercept/chase
+MOVE_DELAY = 150            # Delay gerakan pemain (ms)
+POLICE_PATH_VISUALIZATION = 0  # Debug: tampilkan jalur polisi
 ```
 
-##  Strategi AI
+## 🐛 Troubleshooting
 
-### Pencuri (Defensive)
-1.  Prioritas: Keselamatan > Kecepatan
-2.  Analisis safety heatmap setiap frame
-3.  Pilih jalur dengan cost terendah (paling aman)
-4.  Bergerak menghindari zona polisi
+### Audio tidak berfungsi
+- Pastikan pygame.mixer terinisialisasi dengan benar
+- Periksa apakah file audio ada di folder `assets/`
+- Game akan tetap berjalan tanpa audio jika ada masalah
 
-### Polisi 1 - Chaser (Aggressive)
-1.  Target: Posisi pencuri SAAT INI
-2.  Taktik: Direct pursuit
-3.  Peran: Pressure dari belakang
+### Frame rate rendah
+- Kurangi `GRID_SIZE` untuk grid lebih kecil
+- Nonaktifkan `POLICE_PATH_VISUALIZATION`
+- Pastikan tidak ada program berat lain yang berjalan
 
-### Polisi 2 - Interceptor (Tactical)
-1.  Target: Posisi pencuri DI MASA DEPAN
-2.  Taktik: Path prediction
-3.  Peran: Cut off dari depan
+### Polisi terlalu cepat/lambat
+- Sesuaikan nilai `police_speed` di `LEVEL_CONFIG`
+- Nilai lebih kecil = polisi lebih cepat
 
-##  Kondisi Kemenangan
+---
 
-### Pencuri Menang
--  Ambil uang
--  Sampai ke Exit tanpa tertangkap
-
-### Polisi Menang
--  Salah satu polisi menyentuh pencuri
--  Pencuri sudah ambil uang
-
-##  Troubleshooting
-
-**Q: Game terlalu lambat/cepat?**
-```python
-FPS = 10  # Semakin tinggi, semakin cepat
-```
-
-**Q: Terlalu banyak tembok?**
-```python
-wall_count = int(GRID_SIZE * GRID_SIZE * 0.30)  # Ubah 0.50 jadi 0.30
-```
-
-**Q: Polisi terlalu kuat/lemah?**
-```python
-danger_radius = 4  # Kurangi radius untuk memudahkan pencuri
-multiplier = 50    # Kurangi multiplier untuk zona bahaya lebih kecil
-```
-
-##  Pembelajaran
-
-Project ini cocok untuk mempelajari:
--  Algoritma A* dan variasinya
--  Game AI pathfinding
--  Predictive movement
--  Priority Queue (heapq)
--  Heuristic functions
--  Cost-based pathfinding
--  Multi-agent coordination
+**Selamat bermain dan semoga berhasil melarikan diri! 🏃‍♂️💨**

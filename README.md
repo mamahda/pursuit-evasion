@@ -1,8 +1,8 @@
-# Museum Heist - Escape the Police! 🏛️💰
+# Museum Heist - Escape the Police! 
 
 Game berbasis Python-Pygame di mana pemain berperan sebagai pencuri yang harus mencuri emas dari museum dan melarikan diri dari dua polisi AI yang cerdas.
 
-## 📋 Deskripsi
+## Deskripsi
 
 Museum Heist adalah game strategi real-time di mana Anda harus:
 1. **Mencuri emas** dari museum
@@ -13,7 +13,7 @@ Game ini menampilkan dua polisi dengan strategi berbeda:
 - **Polisi 1 (Chaser)**: Mengejar posisi Anda saat ini secara langsung
 - **Polisi 2 (Interceptor)**: Memprediksi gerakan Anda dan mencoba memotong jalur pelarian
 
-## 🎮 Fitur Utama
+## Fitur Utama
 
 - **5 Level Kesulitan** dengan tingkat kompleksitas berbeda
 - **AI Polisi Cerdas** menggunakan algoritma pathfinding A*
@@ -23,7 +23,7 @@ Game ini menampilkan dua polisi dengan strategi berbeda:
 - **Timer** untuk mencatat waktu pelarian Anda
 - **Sprite Prosedural** yang dihasilkan secara otomatis jika aset tidak tersedia
 
-## 🛠️ Instalasi
+## Instalasi
 
 ### Persyaratan Sistem
 - Python 3.7 atau lebih baru
@@ -47,7 +47,7 @@ pip install pygame
 python museum_heist.py
 ```
 
-## 🎯 Cara Bermain
+## Cara Bermain
 
 ### Kontrol
 - **W / ↑**: Gerak ke atas
@@ -75,7 +75,7 @@ python museum_heist.py
 | 4 | Expert | 35% | Sangat Cepat (150ms) |
 | 5 | Impossible | 40% | Ekstrem (120ms) |
 
-## 🏗️ Struktur Code
+## Struktur Code
 
 ### Kelas Utama
 
@@ -116,7 +116,7 @@ def get_intercept_target(self):
     # Untuk memotong jalur pelarian
 ```
 
-## 🎨 Aset
+## Aset
 
 Game mendukung aset custom yang dapat ditempatkan di folder `assets/`:
 - `thief.png` - Sprite pencuri
@@ -131,7 +131,7 @@ Game mendukung aset custom yang dapat ditempatkan di folder `assets/`:
 
 **Catatan**: Jika aset tidak tersedia, game akan otomatis membuat sprite sederhana sebagai pengganti.
 
-## ⚙️ Konfigurasi
+## Konfigurasi
 
 Anda dapat menyesuaikan pengaturan game di bagian CONSTANTS:
 
@@ -144,7 +144,7 @@ MOVE_DELAY = 150            # Delay gerakan pemain (ms)
 POLICE_PATH_VISUALIZATION = 0  # Debug: tampilkan jalur polisi
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Audio tidak berfungsi
 - Pastikan pygame.mixer terinisialisasi dengan benar
@@ -162,4 +162,4 @@ POLICE_PATH_VISUALIZATION = 0  # Debug: tampilkan jalur polisi
 
 ---
 
-**Selamat bermain dan semoga berhasil melarikan diri! 🏃‍♂️💨**
+**Selamat bermain dan semoga berhasil melarikan diri!**
